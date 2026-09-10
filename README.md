@@ -1,10 +1,19 @@
 # 知影 ZhiYing · AI 视频成片 Agent（B/S 架构原型）
 
+[![在线体验](https://img.shields.io/badge/在线体验-GitHub_Pages-2e7d4f?style=for-the-badge&logo=github&logoColor=white)](https://84540305-debug.github.io/zhiying-video-agent/)
+[![代码仓库](https://img.shields.io/badge/代码仓库-GitHub-181717?style=for-the-badge&logo=github&logoColor=white)](https://github.com/84540305-debug/zhiying-video-agent)
+[![License](https://img.shields.io/badge/License-MIT-2e7d4f?style=for-the-badge)](LICENSE)
+
+> 🌐 **在线体验**：https://84540305-debug.github.io/zhiying-video-agent/
+> 📦 **源码仓库**：https://github.com/84540305-debug/zhiying-video-agent
+
 一句话，从脚本到成片。浏览器即开即用，无需安装。
 
 ## 一、运行方式
 
-直接用 Chrome / Edge 打开 `index.html` 即可（本地单文件应用，零依赖、零构建）。
+- **在线体验**（推荐）：直接打开 https://84540305-debug.github.io/zhiying-video-agent/ ，无需安装任何环境。
+- **本地运行**：用 Chrome / Edge 打开 `index.html` 即可（本地单文件应用，零依赖、零构建）。
+- **克隆源码**：`git clone https://github.com/84540305-debug/zhiying-video-agent.git`
 
 > 录屏导出功能需在浏览器中允许屏幕捕获；旁白语音使用浏览器内置 TTS（中文女声）。
 
