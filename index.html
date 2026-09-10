@@ -1044,6 +1044,7 @@ async function _callSeedance25(prompt, opts){
 // 错误翻译
 function _seedanceErr(msg){
   const m = String(msg);
+  if(/copyright|版权/i.test(m))                       return '内容审核拦截：提示词可能涉及真人、真实历史事件、影视作品或品牌等版权敏感内容。可在右侧 AI 对话框让 AI 改写该分镜画面（去掉真实人名/作品名/阅兵等词）后重试';
   if(/AuthenticationError|InvalidAPIKey|401/i.test(m))  return '鉴权失败：API Key 无效或已过期，请回控制台重新复制';
   if(/AccessDenied|403|ModelNotOpen/i.test(m))          return '权限拒绝：账户可能没开通 Seedance 或余额不足 200 元门槛';
   if(/ModelNotFound|404/i.test(m))                       return '模型不存在：请检查「视频模型」下拉是否选了正确版本';
@@ -1088,6 +1089,22 @@ function _seedanceCfg(){
   };
 }
 // 为某个分镜异步生成 Seedance 视频（首次播放时触发）
+/* Seedance 视频提示词净化：剥离易触发版权/内容审核的元素（真人名、书名号作品、影视词、品牌） */
+function _sanitizeVideoPrompt(t){
+  let s = String(t || '');
+  if(!s) return s;
+  const rules = [
+    [/《[^》]{1,30}》/g, ''],                                              // 书名号作品名《长津湖》等
+    [/(电影|纪录片|影片|电视剧|影视剧|动画片|预告片|剧照|海报|主题曲|配乐|片段截取)/g, ''],
+    [/(毛泽东|毛主席|周恩来|朱德|彭德怀|邓小平|孙中山|蒋介石|斯大林|罗斯福|丘吉尔|希特勒|杜鲁门|麦克阿瑟|艾森豪威尔|金日成|萨达姆|本拉登)/g, ''],
+    [/(抖音|TikTok|快手|B站|哔哩哔哩|微博|微信|logo|LOGO|标志|商标|水印)/g, ''],
+    [/(阅兵|国庆阅兵|大阅兵)/g, '盛大列队仪式'],                            // 阅兵场景易被判敏感
+    [/(解放军队列|受阅部队)/g, '仪仗队列'],
+  ];
+  rules.forEach(([re, rep]) => s = s.replace(re, rep));
+  return s.replace(/\s{2,}/g, ' ').trim();
+}
+
 async function _triggerSceneVideo(scene, project){
   const cfg = _seedanceCfg();
   if(!cfg.key){ toast('请先在 ⚙️ 设置里配置火山引擎 API Key'); return; }
@@ -1097,7 +1114,8 @@ async function _triggerSceneVideo(scene, project){
   // 立刻刷新一次分镜列表让用户看到状态
   if(state.project===project) renderStoryboard();
   const basePrompt = scenePromptFor(scene, project) || scene.title || scene.narration || 'cinematic motion';
-  const prompt = basePrompt + ', cinematic motion, smooth camera movement, high quality, 24fps';
+  // 视频通道走净化版提示词：剥离真人名/作品名/影视词等版权敏感元素
+  const prompt = _sanitizeVideoPrompt(basePrompt) + ', cinematic motion, smooth camera movement, high quality, 24fps';
   try{
     const r = await _callSeedance25(prompt, cfg);
     scene.videoUrl = r.url;
