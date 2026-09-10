@@ -682,10 +682,10 @@
       <label class="cfg-label">选择模型</label>
       <select class="cfg-select" id="cfgModel" onchange="onCfgModelChange()">
         <option value="pollinations">Pollinations.ai（默认 · 免费免key · 推荐）</option>
-        <option value="doubao">豆包 / 火山引擎方舟（需 API Key + 可能需代理）</option>
+        <option value="doubao">豆包 / 火山引擎方舟 · Seedream（推荐 · 浏览器直连免代理）</option>
         <option value="wanx">通义万相 / 阿里 DashScope（需 API Key + 异步轮询）</option>
         <option value="stability">Stability AI / Stable Diffusion（需 API Key · 支持CORS）</option>
-        <option value="dalle">OpenAI DALL·E 3（需 API Key · 支持CORS）</option>
+        <option value="dalle">OpenAI DALL·E 3（需 API Key · 需特殊网络环境）</option>
       </select>
 
       <div id="cfgPollinations" class="cfg-section">
@@ -694,20 +694,28 @@
 
       <div id="cfgDoubao" class="cfg-section hidden">
         <label class="cfg-label">火山引擎方舟 API Key <span class="cfg-required">*</span></label>
-        <input class="cfg-input" id="cfgDoubaoKey" type="password" placeholder="在 https://console.volcengine.com/ark 获取">
-        <label class="cfg-label">模型名（可选）</label>
-        <input class="cfg-input" id="cfgDoubaoModel" type="text" placeholder="doubao-image-32k（默认）">
-        <label class="cfg-label">代理地址（可选，解决 CORS）</label>
-        <input class="cfg-input" id="cfgDoubaoProxy" type="text" placeholder="https://your-proxy.workers.dev">
-        <p class="cfg-tip">⚠️ 火山引擎 API 默认不支持浏览器 CORS，需部署后端代理。<br>获取密钥：https://console.volcengine.com/ark → 开通方舟 → 创建 API Key</p>
+        <input class="cfg-input" id="cfgDoubaoKey" type="password" placeholder="在 https://console.volcengine.com/ark 获取（API Key 管理）">
+        <label class="cfg-label">模型名（可选，默认 doubao-seedream-4-0-250828）</label>
+        <input class="cfg-input" id="cfgDoubaoModel" type="text" list="doubaoModelList" placeholder="doubao-seedream-4-0-250828">
+        <datalist id="doubaoModelList">
+          <option value="doubao-seedream-4-0-250828">Seedream 4.0 · 性价比首选（推荐）</option>
+          <option value="doubao-seedream-4-5-251128">Seedream 4.5 · 质量更高</option>
+          <option value="doubao-seedream-5-0-260128">Seedream 5.0 lite · 支持 2K/3K/4K</option>
+          <option value="doubao-seedream-5-0-pro-260628">Seedream 5.0 pro · 顶配</option>
+        </datalist>
+        <label class="cfg-label">代理地址（<b>不用填</b>，方舟已开放浏览器直连）</label>
+        <input class="cfg-input" id="cfgDoubaoProxy" type="text" placeholder="留空即可">
+        <button onclick="testDoubaoConn()" style="margin-top:6px;padding:9px 14px;border-radius:8px;border:1px solid #2e7d4f;background:#eaf5ee;color:#1b5e3a;font-size:13px;cursor:pointer;width:100%">🔌 测试连接（会真实生成 1 张图）</button>
+        <div id="cfgDoubaoTest" style="margin-top:8px;font-size:12.5px;line-height:1.6;word-break:break-all"></div>
+        <p class="cfg-tip">✅ <b>无需部署代理</b>：方舟接口已返回 CORS 头，浏览器可直调。<br>密钥仅存本机 localStorage，不会上传到任何服务器。<br>获取密钥：https://console.volcengine.com/ark → API Key 管理；<br>还需在「开通管理」中开通对应 Seedream 模型。</p>
       </div>
 
       <div id="cfgWanx" class="cfg-section hidden">
         <label class="cfg-label">DashScope API Key <span class="cfg-required">*</span></label>
         <input class="cfg-input" id="cfgWanxKey" type="password" placeholder="在 https://dashscope.console.aliyun.com 获取">
-        <label class="cfg-label">代理地址（可选，解决 CORS）</label>
-        <input class="cfg-input" id="cfgWanxProxy" type="text" placeholder="https://your-proxy.workers.dev">
-        <p class="cfg-tip">⚠️ 通义万相 API 为异步模式（提交任务→轮询），默认不支持浏览器 CORS。<br>获取密钥：https://dashscope.console.aliyun.com → 创建 API Key</p>
+        <label class="cfg-label">代理地址（<b>一般不用填</b>）</label>
+        <input class="cfg-input" id="cfgWanxProxy" type="text" placeholder="留空即可">
+        <p class="cfg-tip">✅ 实测同样开放浏览器直连，代理可留空。<br>接口为异步模式（提交任务 → 轮询结果），出图稍慢。<br>获取密钥：https://dashscope.console.aliyun.com → 创建 API Key</p>
       </div>
 
       <div id="cfgStability" class="cfg-section hidden">
@@ -839,51 +847,83 @@ async function _callPollinations(prompt, w, h){
   return await _blobToDataURL(await r.blob());
 }
 
-// ② 豆包/火山引擎方舟（需 ARK_API_KEY，异步任务模式，需后端代理解决 CORS）
-//    API: POST /api/v3/contents/generations/tasks → 返回 task_id → 轮询 GET /tasks/{id}
-async function _callDoubao(prompt, w, h){
-  const key = IMG_CONFIG.keys.doubao;
+// ② 豆包 / 火山引擎方舟（Seedream 系列 · 文生图 · 同步返回）
+//    API: POST https://ark.cn-beijing.volces.com/api/v3/images/generations
+//    ✅ 实测结论：方舟会反射任意 Origin（access-control-allow-origin 回显请求来源），
+//       浏览器可直调，**不需要部署 CORS 代理**；代理字段留空即可。
+//    ⚠️ 易错点：文生图必须走 /images/generations；
+//       视频才走 /contents/generations/tasks —— 两者不能混用（旧版本曾误用视频端点导致必失败）。
+async function _callDoubao(prompt, w, h, ov){
+  const o = ov || {};
+  const key = o.key || IMG_CONFIG.keys.doubao;
   if(!key) throw new Error('未配置火山引擎 API Key');
-  const proxy = IMG_CONFIG.keys.doubao_proxy || '';
-  const base = proxy || 'https://ark.cn-beijing.volces.com';
-  const model = IMG_CONFIG.keys.doubao_model || 'doubao-seedream-3-0-t2a-250415';
-  // 提交文生图任务
-  const r1 = await fetch(base+'/api/v3/contents/generations/tasks', {
-    method:'POST',
-    headers:{'Authorization':'Bearer '+key, 'Content-Type':'application/json'},
+  const rawProxy = (o.proxy !== undefined ? o.proxy : (IMG_CONFIG.keys.doubao_proxy || ''));
+  const base  = rawProxy.replace(/\/+$/, '') || 'https://ark.cn-beijing.volces.com';
+  const model = o.model || IMG_CONFIG.keys.doubao_model || 'doubao-seedream-4-0-250828';
+
+  const r = await fetch(base + '/api/v3/images/generations', {
+    method: 'POST',
+    headers: { 'Authorization': 'Bearer ' + key, 'Content-Type': 'application/json' },
     body: JSON.stringify({
       model: model,
-      content: [{type:'text', text: prompt}],
-      ratio: w>h ? '16:9' : '1:1'
+      prompt: String(prompt).slice(0, 1200),
+      size: _arkSize(w, h),          // 方舟 size 是「像素区间」规则，见 _arkSize 注释
+      response_format: 'b64_json',   // 直接取 base64，彻底绕开图片域名的跨域问题
+      watermark: false               // 教学素材不留水印
     })
   });
-  if(!r1.ok) throw new Error('豆包提交失败: '+r1.status+' '+(await r1.text()).slice(0,100));
-  const j1 = await r1.json();
-  const taskId = j1.id;
-  if(!taskId) throw new Error('豆包未返回任务ID');
-  return await _pollDoubaoTask(base, key, taskId);
+  const txt = await r.text();
+  if(!r.ok) throw new Error('豆包 ' + r.status + ' · ' + _arkErr(txt));
+  let j; try { j = JSON.parse(txt); } catch(e){ throw new Error('豆包返回非 JSON：' + txt.slice(0, 120)); }
+  const d = (j.data && j.data[0]) || {};
+  if(d.b64_json) return 'data:image/' + (d.output_format || 'jpeg') + ';base64,' + d.b64_json;
+  if(d.url) return await _arkUrlToDataURL(d.url);
+  throw new Error('豆包未返回图片：' + txt.slice(0, 150));
 }
-// 轮询豆包任务结果（最多 60 秒）
-async function _pollDoubaoTask(base, key, taskId){
-  for(let i=0;i<60;i++){
-    await new Promise(r=>setTimeout(r,1500));
-    const r = await fetch(base+'/api/v3/contents/generations/tasks/'+taskId, {
-      headers:{'Authorization':'Bearer '+key}
-    });
-    const j = await r.json();
-    if(j.status==='succeeded' || j.status==='SUCCEEDED'){
-      // 获取图片 URL
-      const url = j.content?.data?.[0]?.url || j.output?.url || j.data?.[0]?.url;
-      if(url) return await _urlToDataURL(url);
-      throw new Error('豆包任务成功但无图片URL');
-    }
-    if(j.status==='failed' || j.status==='FAILED') throw new Error('豆包生成失败: '+(j.error?.message||''));
-  }
-  throw new Error('豆包任务超时');
+
+// 方舟 Seedream 4.0 尺寸规则（官方）：总像素 ∈ [1280×720 = 921600, 4096×4096 = 16777216]，
+// 宽高比 ∈ [1/16, 16]。传具体「宽x高」像素值以保证画面比例正确（而非 1K/2K 简写）。
+function _arkSize(w, h){
+  const r = w / h;
+  const hd = w >= 800;                                    // 大画面出 2K，缩略图出 1K，兼顾质量与成本
+  if(r >= 1.70) return hd ? '2048x1152' : '1280x720';     // 16:9
+  if(r >= 1.20) return hd ? '2048x1536' : '1536x1152';    // 4:3
+  if(r <= 0.58) return hd ? '1152x2048' : '720x1280';     // 9:16
+  if(r <= 0.83) return hd ? '1536x2048' : '1152x1536';    // 3:4
+  return hd ? '2048x2048' : '1024x1024';                  // 1:1
+}
+
+// 若模型强制返回 url（而非 b64），兜底下载；图片域名可能不允许跨域，失败给出明确提示
+async function _arkUrlToDataURL(url){
+  try { return await _urlToDataURL(url); }
+  catch(e){ throw new Error('图片已生成但下载被跨域拦截，请在设置中改用 b64_json 或填写代理地址'); }
+}
+
+// 把方舟的错误响应翻译成可操作的中文提示
+function _arkErr(txt){
+  let code = '', msg = '';
+  try { const j = JSON.parse(txt); code = (j.error && j.error.code) || ''; msg = (j.error && j.error.message) || ''; }
+  catch(e){ return String(txt).slice(0, 160); }
+  const hint = {
+    AuthenticationError: 'API Key 无效或已失效，请到 方舟控制台 → API Key 管理 重新生成',
+    InvalidApiKey:       'API Key 无效，请检查是否复制完整',
+    AccessDenied:        '该模型未开通：请到 方舟控制台 → 开通管理 中开通对应模型',
+    ModelNotOpen:        '该模型未开通：请到 方舟控制台 → 开通管理 中开通对应模型',
+    ModelNotFound:       '模型 ID 不存在，请核对模型名（设置面板有候选列表）',
+    InvalidParameter:    '参数不合法（多为 size 尺寸超范围）',
+    QuotaExceeded:       '额度不足，请到方舟控制台充值或检查免费额度',
+    RateLimitExceeded:   '触发限流，请稍后重试',
+  }[code];
+  return code + ' ' + msg + (hint ? '  👉 ' + hint : '');
 }
 
 // ② 豆包视频生成（doubao-seedance，文生视频/图生视频）
 //    API: POST /api/v3/contents/generations/tasks（content 含 text+image_url+video_url+audio_url）
+//    ✅ 同样是浏览器直连，无需代理（方舟统一放行 CORS）。
+//    ⚠️ 门槛提醒：Seedance 2.x 系列需账户余额 > 200 元 且无免费试用额度；
+//       想低成本试跑请把 opts.model 换成 doubao-seedance-1-0-pro-fast-251015（最便宜）。
+//    可用模型：doubao-seedance-2-5-260628 / 2-0-260128 / 2-0-fast-260128 /
+//              1-5-pro-251215 / 1-0-pro-250528 / 1-0-pro-fast-251015
 async function _callDoubaoVideo(prompt, opts){
   const key = IMG_CONFIG.keys.doubao;
   if(!key) throw new Error('未配置火山引擎 API Key');
@@ -1008,25 +1048,53 @@ async function genImageViaAPI(prompt, w, h, timeout=18000){
 
 /* 文生图设置弹窗 */
 const IMG_MODELS = {
-  pollinations:{label:'Pollinations.ai', tip:'免费免key'},
-  doubao:      {label:'豆包/火山引擎',  tip:'需Key+代理'},
-  wanx:        {label:'通义万相',        tip:'需Key+轮询'},
-  stability:   {label:'Stability AI',   tip:'需Key·支持CORS'},
-  dalle:       {label:'DALL·E 3',        tip:'需Key·支持CORS'},
+  pollinations:{label:'Pollinations.ai', tip:'免费免key·国内不通'},
+  doubao:      {label:'豆包/火山引擎', tip:'Seedream·浏览器直连免代理'},
+  wanx:        {label:'通义万相',        tip:'需Key·异步轮询'},
+  stability:   {label:'Stability AI',   tip:'需Key·需特殊网络'},
+  dalle:       {label:'DALL·E 3',        tip:'需Key·需特殊网络'},
 };
 function openImgConfig(){
   $('#cfgModel').value = IMG_CONFIG.model;
-  // 回填已保存的密钥
+  // 回填已保存的密钥（模型名给默认值，省得用户查文档）
   $('#cfgDoubaoKey').value    = IMG_CONFIG.keys.doubao || '';
-  $('#cfgDoubaoModel').value  = IMG_CONFIG.keys.doubao_model || '';
+  $('#cfgDoubaoModel').value  = IMG_CONFIG.keys.doubao_model || 'doubao-seedream-4-0-250828';
   $('#cfgDoubaoProxy').value  = IMG_CONFIG.keys.doubao_proxy || '';
   $('#cfgWanxKey').value      = IMG_CONFIG.keys.wanx || '';
   $('#cfgWanxProxy').value    = IMG_CONFIG.keys.wanx_proxy || '';
   $('#cfgStabilityKey').value = IMG_CONFIG.keys.stability || '';
   $('#cfgOpenaiKey').value    = IMG_CONFIG.keys.openai || '';
   $('#cfgOpenaiProxy').value  = IMG_CONFIG.keys.openai_proxy || '';
+  const tr = document.getElementById('cfgDoubaoTest');
+  if(tr) tr.innerHTML = '';
   onCfgModelChange();
   $('#imgCfgMask').classList.add('show');
+}
+
+/* 豆包连接测试：用一句军事提示词真实生成一张图，直接验证 Key / 模型 / 网络三项是否就绪 */
+async function testDoubaoConn(){
+  const el  = document.getElementById('cfgDoubaoTest');
+  const key = $('#cfgDoubaoKey').value.trim();
+  const proxy = $('#cfgDoubaoProxy').value.trim();
+  const model = $('#cfgDoubaoModel').value.trim() || 'doubao-seedream-4-0-250828';
+  if(!key){ el.style.color = '#c62828'; el.textContent = '请先填入火山引擎方舟 API Key'; return; }
+  el.style.color = '#5a6b60';
+  el.textContent = '正在调用方舟生成测试图（约 5~15 秒，请稍候）…';
+  const t0 = Date.now();
+  try{
+    const dataUrl = await _callDoubao(
+      '中国人民解放军阅兵方阵，五星红旗迎风飘扬，金色晨光，庄严威武，纪实摄影风格',
+      1280, 720, { key: key, proxy: proxy, model: model }
+    );
+    const sec = ((Date.now() - t0) / 1000).toFixed(1);
+    el.style.color = '#1b5e3a';
+    el.innerHTML = '✅ <b>连接成功</b>（' + sec + 's）· 模型 ' + model +
+      '<br>尺寸 ' + _arkSize(1280, 720) + ' · 返回 base64 已内联' +
+      '<br><img src="' + dataUrl + '" style="margin-top:8px;width:100%;border-radius:8px;border:1px solid #cfe3d6">';
+  }catch(e){
+    el.style.color = '#c62828';
+    el.innerHTML = '❌ <b>连接失败</b><br>' + e.message;
+  }
 }
 function closeImgConfig(){ $('#imgCfgMask').classList.remove('show'); }
 function onCfgModelChange(){
