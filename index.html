@@ -838,27 +838,93 @@ async function _callPollinations(prompt, w, h){
   return await _blobToDataURL(await r.blob());
 }
 
-// ② 豆包/火山引擎方舟（需 ARK_API_KEY，可能需后端代理解决 CORS）
+// ② 豆包/火山引擎方舟（需 ARK_API_KEY，异步任务模式，需后端代理解决 CORS）
+//    API: POST /api/v3/contents/generations/tasks → 返回 task_id → 轮询 GET /tasks/{id}
 async function _callDoubao(prompt, w, h){
   const key = IMG_CONFIG.keys.doubao;
   if(!key) throw new Error('未配置火山引擎 API Key');
-  const proxy = IMG_CONFIG.keys.doubao_proxy || ''; // 可选代理地址
-  const url = (proxy || 'https://ark.cn-beijing.volces.com') + '/api/v3/images/generations';
-  const r = await fetch(url, {
+  const proxy = IMG_CONFIG.keys.doubao_proxy || '';
+  const base = proxy || 'https://ark.cn-beijing.volces.com';
+  const model = IMG_CONFIG.keys.doubao_model || 'doubao-seedream-3-0-t2a-250415';
+  // 提交文生图任务
+  const r1 = await fetch(base+'/api/v3/contents/generations/tasks', {
     method:'POST',
     headers:{'Authorization':'Bearer '+key, 'Content-Type':'application/json'},
     body: JSON.stringify({
-      model: IMG_CONFIG.keys.doubao_model || 'doubao-image-32k',
-      prompt: prompt,
-      size: _sizeFor(w,h),
-      response_format: 'b64_json'
+      model: model,
+      content: [{type:'text', text: prompt}],
+      ratio: w>h ? '16:9' : '1:1'
     })
   });
-  if(!r.ok) throw new Error('豆包API错误: '+r.status);
-  const j = await r.json();
-  const b64 = j.data?.[0]?.b64_json || j.data?.[0]?.url;
-  if(!b64) throw new Error('豆包返回无图片');
-  return b64.startsWith('http') ? await _urlToDataURL(b64) : 'data:image/png;base64,'+b64;
+  if(!r1.ok) throw new Error('豆包提交失败: '+r1.status+' '+(await r1.text()).slice(0,100));
+  const j1 = await r1.json();
+  const taskId = j1.id;
+  if(!taskId) throw new Error('豆包未返回任务ID');
+  return await _pollDoubaoTask(base, key, taskId);
+}
+// 轮询豆包任务结果（最多 60 秒）
+async function _pollDoubaoTask(base, key, taskId){
+  for(let i=0;i<60;i++){
+    await new Promise(r=>setTimeout(r,1500));
+    const r = await fetch(base+'/api/v3/contents/generations/tasks/'+taskId, {
+      headers:{'Authorization':'Bearer '+key}
+    });
+    const j = await r.json();
+    if(j.status==='succeeded' || j.status==='SUCCEEDED'){
+      // 获取图片 URL
+      const url = j.content?.data?.[0]?.url || j.output?.url || j.data?.[0]?.url;
+      if(url) return await _urlToDataURL(url);
+      throw new Error('豆包任务成功但无图片URL');
+    }
+    if(j.status==='failed' || j.status==='FAILED') throw new Error('豆包生成失败: '+(j.error?.message||''));
+  }
+  throw new Error('豆包任务超时');
+}
+
+// ② 豆包视频生成（doubao-seedance，文生视频/图生视频）
+//    API: POST /api/v3/contents/generations/tasks（content 含 text+image_url+video_url+audio_url）
+async function _callDoubaoVideo(prompt, opts){
+  const key = IMG_CONFIG.keys.doubao;
+  if(!key) throw new Error('未配置火山引擎 API Key');
+  const proxy = IMG_CONFIG.keys.doubao_proxy || '';
+  const base = proxy || 'https://ark.cn-beijing.volces.com';
+  const model = opts.model || 'doubao-seedance-2-5-260628';
+  // 构建 content 数组（按用户提供的 curl 格式）
+  const content = [{type:'text', text: prompt}];
+  if(opts.imageUrl) content.push({type:'image_url', image_url:{url:opts.imageUrl}, role:'reference_image'});
+  if(opts.videoUrl) content.push({type:'video_url', video_url:{url:opts.videoUrl}, role:'reference_video'});
+  if(opts.audioUrl) content.push({type:'audio_url', audio_url:{url:opts.audioUrl}, role:'reference_audio'});
+  const r1 = await fetch(base+'/api/v3/contents/generations/tasks', {
+    method:'POST',
+    headers:{'Authorization':'Bearer '+key, 'Content-Type':'application/json'},
+    body: JSON.stringify({
+      model: model,
+      content: content,
+      generate_audio: opts.generateAudio!==false,
+      ratio: opts.ratio || '16:9',
+      duration: opts.duration || 5,
+      watermark: false
+    })
+  });
+  if(!r1.ok) throw new Error('豆包视频提交失败: '+r1.status+' '+(await r1.text()).slice(0,100));
+  const j1 = await r1.json();
+  const taskId = j1.id;
+  if(!taskId) throw new Error('豆包视频未返回任务ID');
+  // 轮询（视频生成更慢，最多 180 秒）
+  for(let i=0;i<120;i++){
+    await new Promise(r=>setTimeout(r,1500));
+    const r = await fetch(base+'/api/v3/contents/generations/tasks/'+taskId, {
+      headers:{'Authorization':'Bearer '+key}
+    });
+    const j = await r.json();
+    if(j.status==='succeeded' || j.status==='SUCCEEDED'){
+      const url = j.content?.data?.[0]?.url || j.output?.url;
+      if(url) return url; // 视频直接返回 URL（不转 dataURL，太大）
+      throw new Error('豆包视频成功但无URL');
+    }
+    if(j.status==='failed' || j.status==='FAILED') throw new Error('豆包视频生成失败: '+(j.error?.message||''));
+  }
+  throw new Error('豆包视频任务超时');
 }
 
 // ③ 通义万相/阿里DashScope（需 DASHSCOPE_API_KEY，异步轮询，需后端代理）
