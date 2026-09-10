@@ -869,8 +869,52 @@ function renderSceneImage(scene, w, h){
   x.fillStyle=vg; x.fillRect(0,0,w,h);
   return c.toDataURL('image/jpeg',.88);
 }
-function imgFor(s){ if(s.imgUrl) return s.imgUrl; if(!s._img) s._img = renderSceneImage(s,1280,720); return s._img; }
-function thumbFor(s){ if(s.imgUrl) return s.imgUrl; if(!s._thumb) s._thumb = renderSceneImage(s,320,180); return s._thumb; }
+function imgFor(s){ if(s.imgUrl) return s.imgUrl; if(s._apiImg) return s._apiImg; if(!s._img) s._img = renderSceneImage(s,1280,720); return s._img; }
+function thumbFor(s){ if(s.imgUrl) return s.imgUrl; if(s._apiThumb) return s._apiThumb; if(!s._thumb) s._thumb = renderSceneImage(s,320,180); return s._thumb; }
+
+/* 分镜画面异步加载真实文生图：先程序化占位，1-3秒后 API 出图替换 */
+function scenePromptFor(s, project){
+  if(s._apiPrompt) return s._apiPrompt;
+  // 用分镜旁白 + 项目主题作为 prompt 来源
+  const topic = (project && project.topic) || s.keyword || s.title || '';
+  const narration = s.narration || s.title || '';
+  // 取旁白前 50 字 + 主题，组合成英文短句
+  const base = (topic + ' ' + narration.slice(0,50)).trim();
+  s._apiPrompt = enhancePrompt(base);
+  return s._apiPrompt;
+}
+/* 给指定 img 元素异步替换为真实文生图 */
+function refreshImgWithAPI(scene, imgEl, w, h, project){
+  if(!imgEl || scene._apiLoaded) return; // 已加载过
+  const prompt = scenePromptFor(scene, project);
+  genImageViaAPI(prompt, w, h, 18000).then(dataUrl=>{
+    if(w>=800){ scene._apiImg = dataUrl; }
+    else      { scene._apiThumb = dataUrl; }
+    scene._apiLoaded = true;
+    imgEl.src = dataUrl; // 替换为真实图
+    imgEl.style.opacity = 0;
+    imgEl.style.transition = 'opacity .5s';
+    requestAnimationFrame(()=> imgEl.style.opacity = 1);
+  }).catch(()=>{ /* 失败保持程序化图，不报错 */ });
+}
+/* 演示页配图异步加载：所有 two-col 页面后台调 API 替换 */
+function refreshAllSlideImages(project){
+  if(!project || project.mode!=='ppt') return;
+  const twoColPages = (project.pages||[]).filter(p=>p.type==='two-col' && !p._apiLoaded);
+  twoColPages.forEach((page, idx)=>{
+    setTimeout(()=>{
+      const prompt = enhancePrompt((project.topic||'') + ' ' + (page.imgHint||page.title||''));
+      genImageViaAPI(prompt, 720, 480, 18000).then(dataUrl=>{
+        page.image = dataUrl;
+        page._apiLoaded = true;
+        // 如果当前正在显示这页，重新渲染
+        if(state.project===project && state.pptPage===project.pages.indexOf(page)){
+          renderSlide(state.pptPage);
+        }
+      }).catch(()=>{});
+    }, idx*1200); // 错开 1.2 秒避免限流
+  });
+}
 
 /* ---------------- 网页动画引擎（HTML 视频模式） ---------------- */
 const HTPL = [
@@ -1222,9 +1266,11 @@ function playScene(i, chain){
     htmlS.style.display='none'; htmlS.innerHTML='';
     imgL.style.display='block';
     imgL.classList.remove('show','kb-zin','kb-zout','kb-pl','kb-pr');
-    imgL.src = imgFor(s);
+    imgL.src = imgFor(s); // 程序化占位（立即可见）
     imgL.onload = ()=>{
       imgL.classList.add('show','kb-'+(['zin','zout','pl','pr'][i%4]));
+      // 占位显示后，异步加载真实文生图替换
+      refreshImgWithAPI(s, imgL, 1280, 720, p);
     };
   }else{
     imgL.style.display='none'; imgL.classList.remove('show');
@@ -1381,6 +1427,8 @@ function renderStoryboard(){
     if(p.mode==='image'){
       const img=document.createElement('img'); img.src=thumbFor(s); img.alt=s.title;
       card.appendChild(img);
+      // 缩略图异步替换为真实文生图
+      refreshImgWithAPI(s, img, 320, 180, p);
     }else{
       const pal=palOf(s.pal), tpl=HTPL[s.tpl%HTPL.length];
       const th=document.createElement('div');
@@ -2054,6 +2102,7 @@ async function runPptPipeline(prompt, files){
   const m6=addMsg('agent','▶ 第 6 步 · 进入预览与修改阶段…',true); await sleep(500);
   updateMsg(m6,'✅ 第 6 步 · 预览与修改阶段<br>下方页面列表可点击切换；工具栏可翻页；右上角 <b>「📥 导出 PPTX」</b>生成 python-pptx 脚本，<b>「📥 可编辑 HTML」</b>生成可在 Gamma / Canva 可画继续精修的单文件页面。');
   renderSlide(0);
+  refreshAllSlideImages(proj);
   setStep(track,5,'done');
 
   /* 第7步 导出 */
