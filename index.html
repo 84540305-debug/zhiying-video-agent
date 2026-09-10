@@ -2513,10 +2513,20 @@ async function startOneShot(){
   closeOneShotWizard();
   enterEditor('image');
   // 复用既有七步流水线：脚本→大纲→分镜→画面→声音→预览
-  await runPipeline(topic);
+  try{
+    await runPipeline(topic);
+  }catch(e){
+    addMsg('sys','⚠️ 成片流水线中断：'+(e&&e.message?e.message:e)+'。可稍后重试，或改用编辑器逐句生成。');
+    chatDisable(false);
+    return;
+  }
   // 视频增强：关键分镜升级为 Seedance 视频
-  if(p.mode!=='image') await enhanceWithVideo(p.mode);
-  else addMsg('agent','🖼 已按<b>全静态图版</b>成片。若想升级某些分镜为 AI 视频，点分镜卡片的「重做」或在 ⚙️ 切到 Seedance 2.5 后重新播放该镜。');
+  try{
+    if(p.mode!=='image') await enhanceWithVideo(p.mode);
+    else addMsg('agent','🖼 已按<b>全静态图版</b>成片。若想升级某些分镜为 AI 视频，点分镜卡片的「重做」或在 ⚙️ 切到 Seedance 2.5 后重新播放该镜。');
+  }catch(e){
+    addMsg('sys','⚠️ 视频增强中断：'+(e&&e.message?e.message:e)+'。当前仍为静态图版，不影响成片，可稍后逐镜重试。');
+  }
 }
 async function enhanceWithVideo(mode){
   const proj=state.project; if(!proj || !proj.scenes || !proj.scenes.length) return;
