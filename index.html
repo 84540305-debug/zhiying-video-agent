@@ -872,47 +872,67 @@ function renderSceneImage(scene, w, h){
 function imgFor(s){ if(s.imgUrl) return s.imgUrl; if(s._apiImg) return s._apiImg; if(!s._img) s._img = renderSceneImage(s,1280,720); return s._img; }
 function thumbFor(s){ if(s.imgUrl) return s.imgUrl; if(s._apiThumb) return s._apiThumb; if(!s._thumb) s._thumb = renderSceneImage(s,320,180); return s._thumb; }
 
+/* 并发控制：API 队列，最多同时 2 个，错开 1.2 秒 */
+const _apiQ = { active: 0, queue: [], MAX: 2, GAP: 1200, _seq: 0 };
+function _apiEnqueue(prompt, w, h, timeout){
+  return new Promise((resolve, reject)=>{
+    const task = ()=> genImageViaAPI(prompt, w, h, timeout).then(resolve, reject);
+    _apiQ.queue.push(task);
+    _apiPump();
+  });
+}
+function _apiPump(){
+  while(_apiQ.active < _apiQ.MAX && _apiQ.queue.length){
+    const task = _apiQ.queue.shift();
+    _apiQ.active++;
+    setTimeout(async ()=>{
+      try{ await task(); }catch(e){}
+      _apiQ.active--;
+      _apiPump();
+    }, _apiQ._seq++>0 ? _apiQ.GAP : 0);
+  }
+}
+
 /* 分镜画面异步加载真实文生图：先程序化占位，1-3秒后 API 出图替换 */
 function scenePromptFor(s, project){
   if(s._apiPrompt) return s._apiPrompt;
-  // 用分镜旁白 + 项目主题作为 prompt 来源
   const topic = (project && project.topic) || s.keyword || s.title || '';
   const narration = s.narration || s.title || '';
-  // 取旁白前 50 字 + 主题，组合成英文短句
   const base = (topic + ' ' + narration.slice(0,50)).trim();
   s._apiPrompt = enhancePrompt(base);
   return s._apiPrompt;
 }
-/* 给指定 img 元素异步替换为真实文生图 */
+/* 给指定 img 元素异步替换为真实文生图（缩略图小、大画面中等分辨率，并发控制） */
 function refreshImgWithAPI(scene, imgEl, w, h, project){
-  if(!imgEl || scene._apiLoaded) return; // 已加载过
+  if(!imgEl || scene._apiLoaded) return;
   const prompt = scenePromptFor(scene, project);
-  genImageViaAPI(prompt, w, h, 18000).then(dataUrl=>{
-    if(w>=800){ scene._apiImg = dataUrl; }
-    else      { scene._apiThumb = dataUrl; }
+  // 降低分辨率提升速度：缩略图 192×108（4倍速），大画面 960×540（2倍速）
+  const apiW = w>=800 ? 960 : 192;
+  const apiH = w>=800 ? 540 : 108;
+  _apiEnqueue(prompt, apiW, apiH, 22000).then(dataUrl=>{
+    if(!imgEl.isConnected) return;
+    if(apiW>=800) scene._apiImg = dataUrl;
+    else         scene._apiThumb = dataUrl;
     scene._apiLoaded = true;
-    imgEl.src = dataUrl; // 替换为真实图
+    imgEl.src = dataUrl;
     imgEl.style.opacity = 0;
     imgEl.style.transition = 'opacity .5s';
     requestAnimationFrame(()=> imgEl.style.opacity = 1);
-  }).catch(()=>{ /* 失败保持程序化图，不报错 */ });
+  }).catch(()=>{ /* 失败静默 */ });
 }
 /* 演示页配图异步加载：所有 two-col 页面后台调 API 替换 */
 function refreshAllSlideImages(project){
   if(!project || project.mode!=='ppt') return;
   const twoColPages = (project.pages||[]).filter(p=>p.type==='two-col' && !p._apiLoaded);
-  twoColPages.forEach((page, idx)=>{
-    setTimeout(()=>{
-      const prompt = enhancePrompt((project.topic||'') + ' ' + (page.imgHint||page.title||''));
-      genImageViaAPI(prompt, 720, 480, 18000).then(dataUrl=>{
-        page.image = dataUrl;
-        page._apiLoaded = true;
-        // 如果当前正在显示这页，重新渲染
-        if(state.project===project && state.pptPage===project.pages.indexOf(page)){
-          renderSlide(state.pptPage);
-        }
-      }).catch(()=>{});
-    }, idx*1200); // 错开 1.2 秒避免限流
+  twoColPages.forEach((page)=>{
+    const prompt = enhancePrompt((project.topic||'') + ' ' + (page.imgHint||page.title||''));
+    _apiEnqueue(prompt, 720, 480, 22000).then(dataUrl=>{
+      page.image = dataUrl;
+      page._apiLoaded = true;
+      if(state.project===project && state.pptPage===project.pages.indexOf(page)){
+        renderSlide(state.pptPage);
+      }
+    }).catch(()=>{});
   });
 }
 
@@ -1511,33 +1531,33 @@ function renderHistory(){
   });
 }
 
-/* 历史项目封面：异步调用文生图 API，失败回退到程序化生成 */
+/* 历史项目封面：先同步显示程序化占位（cover区立即可见），再异步用API替换 */
 function loadProjectCover(p, el){
   if(!el) return;
-  const fallback = ()=>{
-    if(!el.querySelector('img')){
-      // 程序化兜底：基于主题色块
-      const pal = PALETTES.find(x=>x.id===pickPalette(p.topic||p.title||'', hashStr(p.id))) || PALETTES[0];
-      const c=document.createElement('canvas'); c.width=128; c.height=72;
-      const x=c.getContext('2d');
-      const g=x.createLinearGradient(0,0,128,72);
-      g.addColorStop(0,pal.bg[0]); g.addColorStop(1,pal.bg[1]); x.fillStyle=g; x.fillRect(0,0,128,72);
-      // 一个柔和色团
-      const rg=x.createRadialGradient(64,36,0,64,36,80);
-      rg.addColorStop(0, pal.blobs[0]+'cc'); rg.addColorStop(1, pal.blobs[0]+'00');
-      x.fillStyle=rg; x.fillRect(0,0,128,72);
-      const tcolor = p.mode==='ppt'?'🎖':(p.mode==='html'?'✦':'🖼');
-      x.fillStyle='#fff'; x.globalAlpha=.85; x.font='600 22px sans-serif'; x.textAlign='center';
-      x.fillText(tcolor, 64, 44);
-      el.innerHTML = '<img src="'+c.toDataURL('image/jpeg',.7)+'">';
-    }
-  };
+  // 第一步：同步渲染程序化占位图（cover 区立即可见，永不空白）
+  el.innerHTML = coverFallbackHTML(p);
+  // 第二步：异步用 API 替换为真实文生图（走并发队列，避免与分镜画面抢资源）
   const prompt = coverPromptFor(p);
-  if(!prompt){ fallback(); return; }
-  genImageViaAPI(prompt, 128, 72, 12000).then(dataUrl=>{
+  if(!prompt) return;
+  _apiEnqueue(prompt, 128, 72, 14000).then(dataUrl=>{
     if(!document.querySelector('.proj-item[data-id="'+p.id+'"]')) return; // 已删除
     el.innerHTML = '<img src="'+dataUrl+'" alt="'+esc(p.title)+'">';
-  }).catch(fallback);
+  }).catch(()=>{ /* API 失败，保留程序化占位图 */ });
+}
+function coverFallbackHTML(p){
+  // 程序化生成 128×72 缩略图（同步、永远可用、立即显示）
+  const pal = PALETTES.find(x=>x.id===pickPalette(p.topic||p.title||'', hashStr(p.id))) || PALETTES[0];
+  const c=document.createElement('canvas'); c.width=128; c.height=72;
+  const x=c.getContext('2d');
+  const g=x.createLinearGradient(0,0,128,72);
+  g.addColorStop(0,pal.bg[0]); g.addColorStop(1,pal.bg[1]); x.fillStyle=g; x.fillRect(0,0,128,72);
+  const rg=x.createRadialGradient(64,36,0,64,36,80);
+  rg.addColorStop(0, pal.blobs[0]+'cc'); rg.addColorStop(1, pal.blobs[0]+'00');
+  x.fillStyle=rg; x.fillRect(0,0,128,72);
+  const tcolor = p.mode==='ppt'?'🎖':(p.mode==='html'?'✦':'🖼');
+  x.fillStyle='#fff'; x.globalAlpha=.85; x.font='600 22px sans-serif'; x.textAlign='center';
+  x.fillText(tcolor, 64, 44);
+  return '<img src="'+c.toDataURL('image/jpeg',.7)+'">';
 }
 function coverPromptFor(p){
   if(p.coverPrompt) return p.coverPrompt;
