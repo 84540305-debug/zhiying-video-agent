@@ -767,7 +767,10 @@
             </select>
           </div>
         </div>
-        <button onclick="testSeedance25Conn()" style="margin-top:12px;padding:9px 14px;border-radius:8px;border:1px solid #2e7d4f;background:#eaf5ee;color:#1b5e3a;font-size:13px;cursor:pointer;width:100%">🎬 测试连接（会真实生成 1 段 5 秒视频，按生成计费）</button>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">
+          <button onclick="testSeedance25Conn()" style="flex:1;min-width:220px;padding:9px 14px;border-radius:8px;border:1px solid #2e7d4f;background:#eaf5ee;color:#1b5e3a;font-size:13px;cursor:pointer">🎬 测试连接（会真实生成 1 段 5 秒视频，按生成计费）</button>
+          <button onclick="testSeedance25Net()" style="padding:9px 14px;border-radius:8px;border:1px solid #5a8db3;background:#eaf3fb;color:#1b4a72;font-size:13px;cursor:pointer">🌐 仅测试网络（不扣费）</button>
+        </div>
         <div id="cfgSeedance25Test" style="margin-top:8px;font-size:12.5px;line-height:1.6;word-break:break-all"></div>
         <p class="cfg-tip">⚠️ <b>无免费试用</b>：首笔即扣费。建议先用「测试连接」验证 Key 与模型可用。<br>💵 费用公式：720p ≈ 1.7 元/秒，480p ≈ 0.7 元/秒（实际以控制台计费规则为准）。<br>🔁 每个分镜生成一次后缓存在项目，<b>刷新网页不丢</b>。<br>🔒 Key 仅存本机 localStorage。</p>
       </div>
@@ -1051,7 +1054,7 @@ async function _callSeedance25(prompt, opts){
 }
 // 错误翻译
 function _seedanceErr(msg){
-  const m = String(msg);
+  const m = String(msg||'');
   if(/copyright|版权/i.test(m))                       return '内容审核拦截：提示词可能涉及真人、真实历史事件、影视作品或品牌等版权敏感内容。可在右侧 AI 对话框让 AI 改写该分镜画面（去掉真实人名/作品名/阅兵等词）后重试';
   if(/AuthenticationError|InvalidAPIKey|401/i.test(m))  return '鉴权失败：API Key 无效或已过期，请回控制台重新复制';
   if(/AccessDenied|403|ModelNotOpen/i.test(m))          return '权限拒绝：账户可能没开通 Seedance 或余额不足 200 元门槛';
@@ -1060,6 +1063,13 @@ function _seedanceErr(msg){
   if(/RateLimit|429/i.test(m))                           return '触发限流，请稍后重试';
   if(/InvalidParameter/i.test(m))                        return '参数错误：时长/宽高比/分辨率组合不支持';
   if(/超时|timeout/i.test(m))                            return '任务超时（视频排队较久），建议稍后再试';
+  if(/Failed to fetch|NetworkError|Load failed|CORS|跨域|TypeError/i.test(m))
+    return '⛔ 浏览器无法连接到火山方舟服务器（TypeError: Failed to fetch）。这通常是网络层问题，不是 Key 错。请按顺序排查：'+
+           '<br>① 关闭 VPN / 代理 / 校园网出口 / 浏览器翻墙插件，重试；'+
+           '<br>② 换"手机流量 + 手机浏览器"打开同一页面再试（绕过局域网限制）；'+
+           '<br>③ 在电脑浏览器开 无痕/隐私窗口 重试（排除插件拦截）；'+
+           '<br>④ 点下方"🌐 测试网络"按钮看是否返回"可连接"，如果显示可连接仍失败 → 是 CORS（极少），请换浏览器；'+
+           '<br>⑤ 如以上均无效，可临时把模型切回「豆包/火山引擎 · Seedream（图片）」先继续做静态图。';
   return m;
 }
 
@@ -1084,6 +1094,36 @@ async function testSeedance25Conn(){
   }catch(e){
     out.innerHTML = '<span style="color:#c0392b">❌ '+(e.message||e)+'</span>';
   }
+}
+// 仅测试网络层（不扣费、不调 Key）
+async function testSeedance25Net(){
+  const out = $('#cfgSeedance25Test');
+  out.innerHTML = '⏳ 网络诊断中…';
+  let html = '';
+  // 1) navigator.onLine
+  html += `① navigator.onLine = <b style="color:${navigator.onLine?'#1b5e3a':'#c0392b'}">${navigator.onLine?'在线':'离线'}</b><br>`;
+  // 2) no-cors 握手主域
+  try{
+    const t0 = Date.now();
+    const r = await fetch('https://ark.cn-beijing.volces.com/', { mode:'no-cors', cache:'no-store' });
+    html += `② 握手主域 <b style="color:#1b5e3a">${r.type}</b>，用时 <b>${Date.now()-t0}ms</b><br>`;
+  }catch(e){
+    html += `② 握手主域 <span style="color:#c0392b">失败：${(e&&e.message)||e}</span><br>`;
+  }
+  // 3) CORS 探测到 API（应返回 401 或 200，不抛 CORS 错误）
+  try{
+    const t1 = Date.now();
+    const r2 = await fetch('https://ark.cn-beijing.volces.com/api/v3/contents/generations/tasks', { method:'POST', mode:'cors', cache:'no-store', headers:{'Content-Type':'application/json'}, body:'{}' });
+    html += `③ CORS 探测 <b style="color:#1b5e3a">HTTP ${r2.status}</b>，用时 <b>${Date.now()-t1}ms</b>（200/401/403 都算 CORS 通）<br>`;
+  }catch(e){
+    const errStr = (e&&e.message)||String(e);
+    html += `③ CORS 探测 <span style="color:#c0392b">失败：${errStr}</span><br>`;
+    if(/Failed to fetch|NetworkError/i.test(errStr)){
+      html += `<span style="color:#c0392b">→ 这就是 "Failed to fetch" 根因，多半是 VPN / 代理 / 公司网拦截 ark.cn-beijing.volces.com</span><br>`;
+    }
+  }
+  html += '<br>✅ 若 ①②③ 全绿，"测试连接"仍 Failed to fetch → 是 Key 错（看错误内容判断）<br>❌ 若 ② 或 ③ 红，按上方 ① 关代理 / ② 换流量 / ③ 换浏览器 排查';
+  out.innerHTML = html;
 }
 
 // 视频模型配置参数
