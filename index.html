@@ -564,6 +564,17 @@
         </ul>
         <span class="mode-go">开始创作 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
       </div>
+      <div class="mode-card" data-mode="oneshot" onclick="openOneShotWizard()" style="border-color:#c99a28;background:linear-gradient(160deg,#fffdf6,#faf3e0)">
+        <div class="mode-icon img" style="background:#f7ecd0"><svg viewBox="0 0 24 24" fill="none" stroke="#b98a1e" stroke-width="1.8"><path d="M13 2L3 14h7l-1 8 10-12h-7l1-8z" stroke-linejoin="round"/></svg></div>
+        <h2 style="color:#8a6a12">⚡ 一句话成片</h2>
+        <p class="desc">输入一句话，AI 全自动完成 <b>脚本 → 分镜 → 画面 → 配音 → 字幕</b>。关键分镜（开头/高潮/结尾）自动升级为 <b>Seedance AI 真实视频</b>，其余为高清静态图。</p>
+        <ul>
+          <li><i></i>零操作 · 输入主题即可</li>
+          <li><i></i>混合模式 · 关键分镜自动出视频</li>
+          <li><i></i>费用预估 · 生成前明确报价</li>
+        </ul>
+        <span class="mode-go" style="background:#c99a28">开始创作 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+      </div>
     </div>
   </main>
   <footer class="home-foot">知影 ZhiYing · 大学生军事理论课教学视频创作平台 · 本原型中的文生图与网页动画引擎为演示通道，架构已预留真实 AI API 接入点</footer>
@@ -673,6 +684,39 @@
 </div>
 
 <div id="toast"></div>
+
+<!-- ⚡ 一句话成片向导 -->
+<div class="modal-mask" id="oneShotMask" onclick="if(event.target===this)closeOneShotWizard()">
+  <div class="modal" role="dialog" aria-label="一句话成片向导" style="max-width:520px">
+    <div class="modal-head">
+      <span style="font-size:20px">⚡</span>
+      <b>一句话成片 · 全自动流水线</b>
+      <button class="modal-close" onclick="closeOneShotWizard()">✕</button>
+    </div>
+    <div style="padding:16px 20px 20px">
+      <label class="cfg-label">一句话主题（越具体，成片越准）</label>
+      <textarea id="oneShotTopic" class="cfg-input" rows="2" placeholder="例：制作一段 60 秒的长城历史教学短视频，面向大学生军事理论课" style="resize:vertical;font-size:13.5px"></textarea>
+      <label class="cfg-label" style="margin-top:12px">画面模式</label>
+      <select id="oneShotMode" class="cfg-input" onchange="updateOneShotCost()">
+        <option value="hybrid" selected>🎬 混合版（推荐）· 开头/高潮/结尾 3 个分镜出 AI 视频，其余静态图</option>
+        <option value="video">🎥 全视频版 · 每个分镜都出 AI 视频（贵）</option>
+        <option value="image">🖼 全静态图版 · 最省钱，Seedream 高清图</option>
+      </select>
+      <label class="cfg-label" style="margin-top:12px">成片时长（决定分镜数量）</label>
+      <select id="oneShotLen" class="cfg-input" onchange="updateOneShotCost()">
+        <option value="40">约 40 秒 · 5 个分镜</option>
+        <option value="60" selected>约 60 秒 · 6~7 个分镜</option>
+        <option value="90">约 90 秒 · 8~9 个分镜</option>
+      </select>
+      <div id="oneShotCost" style="margin-top:14px;border-left:3px solid #c99a28;background:#fdf8ec;padding:10px 12px;font-size:12.5px;line-height:1.7;border-radius:0 6px 6px 0"></div>
+      <div style="display:flex;gap:8px;margin-top:14px">
+        <button onclick="startOneShot()" style="flex:1;padding:11px 16px;border-radius:9px;border:0;background:#c99a28;color:#fff;font-size:14px;font-weight:600;cursor:pointer">🚀 开始生成</button>
+        <button onclick="closeOneShotWizard()" style="padding:11px 16px;border-radius:9px;border:1px solid #bbb;background:#fff;color:#555;font-size:13px;cursor:pointer">取消</button>
+      </div>
+      <p class="cfg-tip" style="margin-top:10px">⚡ 全流程：脚本 → 分镜 → 画面 → 配音 → 字幕 → 预览，无需任何后续操作。<br>🎬 视频分镜走 Seedance（需方舟 Key），生成 30s~3min/镜，完成后自动替换静态图。<br>💡 未配置 Key 时自动降级为全静态图版（仍可正常成片）。</p>
+    </div>
+  </div>
+</div>
 
 <!-- 文生图模型设置弹窗 -->
 <div class="modal-mask" id="imgCfgMask" onclick="if(event.target===this)closeImgConfig()">
@@ -2429,6 +2473,76 @@ async function runPipeline(prompt, files){
 
   chatDisable(false);
   playScene(0,false); // 预览第一个分镜
+}
+
+/* ================= ⚡ 一句话成片 ================= */
+function openOneShotWizard(){
+  $('#oneShotMask').classList.add('show');
+  updateOneShotCost();
+  setTimeout(()=>$('#oneShotTopic').focus(),50);
+}
+function closeOneShotWizard(){
+  $('#oneShotMask').classList.remove('show');
+}
+function _oneShotPlan(){
+  const mode = $('#oneShotMode').value;              // hybrid | video | image
+  const len  = parseInt($('#oneShotLen').value,10);  // 40|60|90
+  const n    = len<=40?5 : (len<=60?6 : 8);          // 分镜数
+  const dur  = parseInt(IMG_CONFIG.keys.seedance25_duration || 10,10);
+  const res  = IMG_CONFIG.keys.seedance25_resolution || '720p';
+  const vPrice = res==='720p' ? 1.7 : 0.7;           // 元/秒
+  const vCount = mode==='video' ? n : (mode==='hybrid' ? Math.min(3,n) : 0);
+  const iCount = n - vCount;
+  return {mode,len,n,dur,res,vPrice,vCount,iCount,
+    vCost: vCount*dur*vPrice, iCost: iCount*0.2, };  // Seedream 4.0 约 0.2 元/张
+}
+function updateOneShotCost(){
+  const p=_oneShotPlan();
+  const total=(p.vCost+p.iCost).toFixed(1);
+  const keyOk = !!(IMG_CONFIG.keys.seedance25_key || IMG_CONFIG.keys.doubao);
+  $('#oneShotCost').innerHTML =
+    `📊 <b>费用预估</b>：${p.n} 个分镜 = 视频分镜 <b>${p.vCount}</b> 个（${p.dur}s · ${p.res}，约 ${(p.vCost).toFixed(1)} 元）+ 静态图 <b>${p.iCount}</b> 张（约 ${(p.iCost).toFixed(1)} 元）<br>`+
+    `💰 合计约 <b style="color:#b9751e;font-size:15px">${total} 元</b>（实际以火山方舟控制台计费为准）<br>`+
+    (keyOk ? '🔑 已检测到火山引擎 Key，视频增强可正常执行'
+           : '⚠️ <b>未检测到火山引擎 Key</b>：将自动降级为全静态图版（仍可成片），配置 Key 后可在编辑器逐镜升级');
+}
+async function startOneShot(){
+  const topic=$('#oneShotTopic').value.trim();
+  if(!topic){ alert('请先输入一句话主题'); $('#oneShotTopic').focus(); return; }
+  const p=_oneShotPlan();
+  closeOneShotWizard();
+  enterEditor('image');
+  // 复用既有七步流水线：脚本→大纲→分镜→画面→声音→预览
+  await runPipeline(topic);
+  // 视频增强：关键分镜升级为 Seedance 视频
+  if(p.mode!=='image') await enhanceWithVideo(p.mode);
+  else addMsg('agent','🖼 已按<b>全静态图版</b>成片。若想升级某些分镜为 AI 视频，点分镜卡片的「重做」或在 ⚙️ 切到 Seedance 2.5 后重新播放该镜。');
+}
+async function enhanceWithVideo(mode){
+  const proj=state.project; if(!proj || !proj.scenes || !proj.scenes.length) return;
+  const key = IMG_CONFIG.keys.seedance25_key || IMG_CONFIG.keys.doubao;
+  const n=proj.scenes.length;
+  if(!key){
+    addMsg('sys','⚠️ 未配置火山引擎 API Key，已跳过视频增强（当前为全静态图版）。可在 ⚙️ 设置 → Seedance 2.5 配置 Key 后，对任意分镜重新播放即可升级为视频。');
+    return;
+  }
+  // 关键分镜标记：首镜 + 中间高潮 + 尾镜（混合版）；全视频版全部标记
+  proj.scenes.forEach((s,i)=>{
+    s.isKey = (mode==='video') ? true : (i===0 || i===n-1 || i===Math.floor(n/2));
+  });
+  const keyScenes=proj.scenes.filter(s=>s.isKey);
+  const m=addMsg('agent',`🎬 <b>视频增强启动</b>：${keyScenes.length} 个关键分镜（${mode==='video'?'全部':'开头/高潮/结尾'}）正在调用 Seedance 生成真实视频…<br>⏱ 每镜约 30 秒~3 分钟，<b>期间可正常预览静态图版</b>，视频完成后自动替换并带 🎬 徽章。`,true);
+  let done=0,fail=0;
+  for(const s of keyScenes){
+    try{
+      await _triggerSceneVideo(s, proj);
+      if(!s.videoUrl) fail++;
+    }catch(e){ fail++; }
+    done++;
+    updateMsg(m,`🎬 视频增强进度 <b>${done} / ${keyScenes.length}</b>${fail?`（失败 ${fail}）`:''}<br>⏱ 期间可正常预览与编辑其他分镜`,true);
+  }
+  persist(); renderStoryboard();
+  updateMsg(m,`✅ <b>视频增强完成</b>：成功 ${keyScenes.filter(s=>s.videoUrl).length} / ${keyScenes.length} 个分镜已升级为 AI 视频${fail?`，失败 ${fail} 个（可在分镜卡片点「重做」重试）`:''}。<br>▶ 现在可点「播放全部」预览完整成片，或点工具栏「录屏导出」输出 .webm 文件。`);
 }
 function regenScene(i){
   const p=state.project;
