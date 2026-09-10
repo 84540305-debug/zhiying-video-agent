@@ -39,7 +39,9 @@
   .logo svg{width:18px;height:18px}
   .brand b{font-size:17px;letter-spacing:.3px}
   .brand .en{font-size:11px;color:var(--muted2);letter-spacing:2px;display:block;margin-top:1px}
-  .home-top-right{font-size:12.5px;color:var(--muted2);letter-spacing:1px}
+  .home-top-right{font-size:12.5px;color:var(--muted2);letter-spacing:1px;display:flex;align-items:center;gap:12px}
+  .btn-cfg{font-size:12px;color:var(--accent);border:1px solid rgba(46,125,79,.35);padding:5px 11px;border-radius:8px;transition:.16s;white-space:nowrap}
+  .btn-cfg:hover{background:rgba(46,125,79,.12);border-color:rgba(46,125,79,.55)}
   .home-hero{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:30px 24px 50px}
   .logo-big{width:84px;height:84px;border-radius:22px;background:var(--grad);display:grid;place-items:center;box-shadow:0 20px 60px rgba(46,125,79,.55);margin-bottom:26px;animation:floaty 5s ease-in-out infinite}
   .logo-big svg{width:40px;height:40px}
@@ -400,6 +402,17 @@
   .mf-ok:disabled{opacity:.4;cursor:not-allowed;transform:none;box-shadow:none}
   @keyframes fadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
 
+  /* 文生图配置弹窗 */
+  .cfg-label{display:block;font-size:12px;font-weight:600;color:var(--text);margin:14px 0 6px}
+  .cfg-label:first-child{margin-top:0}
+  .cfg-required{color:var(--danger)}
+  .cfg-select{width:100%;background:#f5faf6;border:1px solid var(--border2);border-radius:10px;color:var(--text);font-size:13px;font-family:inherit;padding:10px 12px;outline:none;cursor:pointer}
+  .cfg-select:focus{border-color:rgba(46,125,79,.55)}
+  .cfg-input{width:100%;background:#f5faf6;border:1px solid var(--border2);border-radius:10px;color:var(--text);font-size:13px;font-family:inherit;padding:10px 12px;outline:none;transition:.18s}
+  .cfg-input:focus{border-color:rgba(46,125,79,.55);background:#fff}
+  .cfg-section{margin-top:12px}
+  .cfg-tip{font-size:11px;color:var(--muted);line-height:1.8;margin-top:8px;padding:10px 12px;background:rgba(46,125,79,.05);border-radius:8px;border-left:3px solid var(--accent)}
+
   /* 用户消息内的附件摘要 */
   .att-sum{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
   .att-item{
@@ -503,7 +516,10 @@
       <div class="logo"><svg viewBox="0 0 24 24" fill="none"><path d="M12 2.6l2.75 5.98 6.53.78-4.85 4.46 1.29 6.42L12 16.97l-5.72 3.27 1.29-6.42-4.85-4.46 6.53-.78z" fill="#ffd97a" stroke="#fff" stroke-width=".6" stroke-linejoin="round"/></svg></div>
       <div><b>知影 ZhiYing</b><span class="en">AI VIDEO AGENT</span></div>
     </div>
-    <div class="home-top-right">B / S 架构 · 浏览器即开即用 · 无需安装</div>
+    <div class="home-top-right">
+      <button class="btn-cfg" onclick="openImgConfig()">⚙️ 文生图设置</button>
+      <span>B / S 架构 · 浏览器即开即用</span>
+    </div>
   </header>
   <main class="home-hero">
     <div class="logo-big"><svg viewBox="0 0 24 24" fill="none"><path d="M12 2.6l2.75 5.98 6.53.78-4.85 4.46 1.29 6.42L12 16.97l-5.72 3.27 1.29-6.42-4.85-4.46 6.53-.78z" fill="#ffd97a" stroke="#fff" stroke-width=".6" stroke-linejoin="round"/></svg></div>
@@ -651,6 +667,71 @@
 
 <div id="toast"></div>
 
+<!-- 文生图模型设置弹窗 -->
+<div class="modal-mask" id="imgCfgMask" onclick="if(event.target===this)closeImgConfig()">
+  <div class="modal" role="dialog" aria-label="文生图模型设置">
+    <div class="modal-head">
+      <span style="font-size:20px">⚙️</span>
+      <div>
+        <h3>文生图模型设置</h3>
+        <div class="mh-sub">选择文生图 API 模型，填入对应密钥即可切换（密钥仅存本地 localStorage）</div>
+      </div>
+      <button class="modal-close" onclick="closeImgConfig()">✕</button>
+    </div>
+    <div class="modal-body">
+      <label class="cfg-label">选择模型</label>
+      <select class="cfg-select" id="cfgModel" onchange="onCfgModelChange()">
+        <option value="pollinations">Pollinations.ai（默认 · 免费免key · 推荐）</option>
+        <option value="doubao">豆包 / 火山引擎方舟（需 API Key + 可能需代理）</option>
+        <option value="wanx">通义万相 / 阿里 DashScope（需 API Key + 异步轮询）</option>
+        <option value="stability">Stability AI / Stable Diffusion（需 API Key · 支持CORS）</option>
+        <option value="dalle">OpenAI DALL·E 3（需 API Key · 支持CORS）</option>
+      </select>
+
+      <div id="cfgPollinations" class="cfg-section">
+        <p class="cfg-tip">✅ Pollinations.ai 是免费的文生图服务，无需 API Key，开箱即用。<br>缺点：偶发限流，出图质量中等。</p>
+      </div>
+
+      <div id="cfgDoubao" class="cfg-section hidden">
+        <label class="cfg-label">火山引擎方舟 API Key <span class="cfg-required">*</span></label>
+        <input class="cfg-input" id="cfgDoubaoKey" type="password" placeholder="在 https://console.volcengine.com/ark 获取">
+        <label class="cfg-label">模型名（可选）</label>
+        <input class="cfg-input" id="cfgDoubaoModel" type="text" placeholder="doubao-image-32k（默认）">
+        <label class="cfg-label">代理地址（可选，解决 CORS）</label>
+        <input class="cfg-input" id="cfgDoubaoProxy" type="text" placeholder="https://your-proxy.workers.dev">
+        <p class="cfg-tip">⚠️ 火山引擎 API 默认不支持浏览器 CORS，需部署后端代理。<br>获取密钥：https://console.volcengine.com/ark → 开通方舟 → 创建 API Key</p>
+      </div>
+
+      <div id="cfgWanx" class="cfg-section hidden">
+        <label class="cfg-label">DashScope API Key <span class="cfg-required">*</span></label>
+        <input class="cfg-input" id="cfgWanxKey" type="password" placeholder="在 https://dashscope.console.aliyun.com 获取">
+        <label class="cfg-label">代理地址（可选，解决 CORS）</label>
+        <input class="cfg-input" id="cfgWanxProxy" type="text" placeholder="https://your-proxy.workers.dev">
+        <p class="cfg-tip">⚠️ 通义万相 API 为异步模式（提交任务→轮询），默认不支持浏览器 CORS。<br>获取密钥：https://dashscope.console.aliyun.com → 创建 API Key</p>
+      </div>
+
+      <div id="cfgStability" class="cfg-section hidden">
+        <label class="cfg-label">Stability API Key <span class="cfg-required">*</span></label>
+        <input class="cfg-input" id="cfgStabilityKey" type="password" placeholder="在 https://platform.stability.ai 获取">
+        <p class="cfg-tip">✅ Stability AI 支持 CORS，可从浏览器直调。<br>获取密钥：https://platform.stability.ai → API Keys</p>
+      </div>
+
+      <div id="cfgDalle" class="cfg-section hidden">
+        <label class="cfg-label">OpenAI API Key <span class="cfg-required">*</span></label>
+        <input class="cfg-input" id="cfgOpenaiKey" type="password" placeholder="sk-...">
+        <label class="cfg-label">代理地址（可选，如 api.openai-proxy.com）</label>
+        <input class="cfg-input" id="cfgOpenaiProxy" type="text" placeholder="https://api.openai.com（默认）">
+        <p class="cfg-tip">✅ OpenAI API 支持 CORS（部分地区需代理）。<br>获取密钥：https://platform.openai.com/api-keys</p>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <div class="mf-count" id="cfgStatus">当前模型：Pollinations.ai</div>
+      <button class="mf-btn mf-cancel" onclick="closeImgConfig()">取消</button>
+      <button class="mf-btn mf-ok" onclick="saveImgConfigUI()">保存设置</button>
+    </div>
+  </div>
+</div>
+
 <!-- 上传文件弹窗 -->
 <div class="modal-mask" id="uploadMask" onclick="if(event.target===this)closeUpload()">
   <div class="modal" role="dialog" aria-label="上传文件">
@@ -731,26 +812,180 @@ function pickPalette(text, seed){
 function palOf(id){ return PALETTES.find(p=>p.id===id) || PALETTES[0]; }
 
 /* ============ 文生图 API 接入（Pollinations.ai · 免费免key） ============ */
-// 接入点：把下面 _callPollinations 替换为其他文生图 API 调用即可（见 README 工程化升级路线）
-// 当前：Pollinations.ai · 无需 key · 支持中英文 prompt · 自动加 nologo=true
+// ============ 文生图 API 接入（多模型可切换） ============
+// 配置存 localStorage：{model:'pollinations'|'doubao'|'wanx'|'stability'|'dalle', keys:{...}}
+const IMG_CONFIG = (()=>{ try{ return JSON.parse(localStorage.getItem('zhiying_img_config')||'{}'); }catch(e){ return {}; } })();
+IMG_CONFIG.model = IMG_CONFIG.model || 'pollinations';
+IMG_CONFIG.keys = IMG_CONFIG.keys || {};
+function saveImgConfig(){ localStorage.setItem('zhiying_img_config', JSON.stringify(IMG_CONFIG)); }
+
+// 模型路由：根据 IMG_CONFIG.model 选择对应 API
+function _callImageAPI(prompt, w, h){
+  switch(IMG_CONFIG.model){
+    case 'doubao':    return _callDoubao(prompt, w, h);
+    case 'wanx':      return _callWanx(prompt, w, h);
+    case 'stability': return _callStability(prompt, w, h);
+    case 'dalle':     return _callDallE(prompt, w, h);
+    default:          return _callPollinations(prompt, w, h);
+  }
+}
+
+// ① Pollinations.ai（默认，免费免key，支持CORS）
 async function _callPollinations(prompt, w, h){
   const url = 'https://image.pollinations.ai/prompt/'+encodeURIComponent(prompt)+'?width='+w+'&height='+h+'&nologo=true&seed='+(hashStr(prompt)%9999);
   const r = await fetch(url, {cache:'no-store'});
   if(!r.ok) throw new Error('HTTP '+r.status);
-  const blob = await r.blob();
-  return await new Promise((resolve,reject)=>{
-    const fr = new FileReader();
-    fr.onload = ()=>resolve(fr.result);
-    fr.onerror = reject;
-    fr.readAsDataURL(blob);
-  });
+  return await _blobToDataURL(await r.blob());
 }
+
+// ② 豆包/火山引擎方舟（需 ARK_API_KEY，可能需后端代理解决 CORS）
+async function _callDoubao(prompt, w, h){
+  const key = IMG_CONFIG.keys.doubao;
+  if(!key) throw new Error('未配置火山引擎 API Key');
+  const proxy = IMG_CONFIG.keys.doubao_proxy || ''; // 可选代理地址
+  const url = (proxy || 'https://ark.cn-beijing.volces.com') + '/api/v3/images/generations';
+  const r = await fetch(url, {
+    method:'POST',
+    headers:{'Authorization':'Bearer '+key, 'Content-Type':'application/json'},
+    body: JSON.stringify({
+      model: IMG_CONFIG.keys.doubao_model || 'doubao-image-32k',
+      prompt: prompt,
+      size: _sizeFor(w,h),
+      response_format: 'b64_json'
+    })
+  });
+  if(!r.ok) throw new Error('豆包API错误: '+r.status);
+  const j = await r.json();
+  const b64 = j.data?.[0]?.b64_json || j.data?.[0]?.url;
+  if(!b64) throw new Error('豆包返回无图片');
+  return b64.startsWith('http') ? await _urlToDataURL(b64) : 'data:image/png;base64,'+b64;
+}
+
+// ③ 通义万相/阿里DashScope（需 DASHSCOPE_API_KEY，异步轮询，需后端代理）
+async function _callWanx(prompt, w, h){
+  const key = IMG_CONFIG.keys.wanx;
+  if(!key) throw new Error('未配置DashScope API Key');
+  const proxy = IMG_CONFIG.keys.wanx_proxy || '';
+  const base = proxy || 'https://dashscope.aliyuncs.com';
+  // 提交异步任务
+  const r1 = await fetch(base+'/api/v1/services/aigc/text2image/image-synthesis', {
+    method:'POST',
+    headers:{'Authorization':'Bearer '+key, 'Content-Type':'application/json', 'X-DashScope-Async':'enable'},
+    body: JSON.stringify({model:'wanx-v1', input:{prompt}, parameters:{size:_wanxSize(w,h), n:1}})
+  });
+  if(!r1.ok) throw new Error('通义万相提交失败: '+r1.status);
+  const j1 = await r1.json();
+  const taskId = j1.output.task_id;
+  // 轮询结果（最多 30 秒）
+  for(let i=0;i<30;i++){
+    await new Promise(r=>setTimeout(r,1000));
+    const r2 = await fetch(base+'/api/v1/tasks/'+taskId, {headers:{'Authorization':'Bearer '+key}});
+    const j2 = await r2.json();
+    if(j2.output.task_status==='SUCCEEDED'){
+      const url = j2.output.results?.[0]?.url;
+      if(!url) throw new Error('通义万相返回无图片');
+      return await _urlToDataURL(url);
+    }
+    if(j2.output.task_status==='FAILED') throw new Error('通义万相生成失败');
+  }
+  throw new Error('通义万相超时');
+}
+
+// ④ Stability AI / Stable Diffusion（需 STABILITY_API_KEY，支持CORS）
+async function _callStability(prompt, w, h){
+  const key = IMG_CONFIG.keys.stability;
+  if(!key) throw new Error('未配置 Stability API Key');
+  const fd = new FormData();
+  fd.append('prompt', prompt);
+  fd.append('aspect_ratio', w>h?'16:9':'9:16');
+  fd.append('output_format', 'jpeg');
+  const r = await fetch('https://api.stability.ai/v2beta/stable-image/generate/core', {
+    method:'POST',
+    headers:{'Authorization':'Bearer '+key, 'Accept':'image/*'},
+    body: fd
+  });
+  if(!r.ok) throw new Error('Stability API错误: '+r.status);
+  return await _blobToDataURL(await r.blob());
+}
+
+// ⑤ OpenAI DALL·E 3（需 OPENAI_API_KEY，支持CORS）
+async function _callDallE(prompt, w, h){
+  const key = IMG_CONFIG.keys.openai;
+  if(!key) throw new Error('未配置 OpenAI API Key');
+  const proxy = IMG_CONFIG.keys.openai_proxy || '';
+  const base = proxy || 'https://api.openai.com';
+  const r = await fetch(base+'/v1/images/generations', {
+    method:'POST',
+    headers:{'Authorization':'Bearer '+key, 'Content-Type':'application/json'},
+    body: JSON.stringify({model:'dall-e-3', prompt, size:'1024x1024', response_format:'b64_json'})
+  });
+  if(!r.ok) throw new Error('DALL·E API错误: '+r.status);
+  const j = await r.json();
+  const b64 = j.data?.[0]?.b64_json;
+  if(!b64) throw new Error('DALL·E返回无图片');
+  return 'data:image/png;base64,'+b64;
+}
+
+// 工具函数
+async function _blobToDataURL(blob){ return new Promise((res,rej)=>{ const fr=new FileReader(); fr.onload=()=>res(fr.result); fr.onerror=rej; fr.readAsDataURL(blob); }); }
+async function _urlToDataURL(url){ const r = await fetch(url); return await _blobToDataURL(await r.blob()); }
+function _sizeFor(w,h){ const s = Math.min(Math.max(w,h),1024); return s+'x'+s; }
+function _wanxSize(w,h){ return Math.min(Math.max(w,h),1024)+'*'+Math.min(Math.max(w,h),1024); }
+
 async function genImageViaAPI(prompt, w, h, timeout=18000){
-  const t = setTimeout(()=>{},0); // noop marker
   return await Promise.race([
-    _callPollinations(prompt, w, h),
+    _callImageAPI(prompt, w, h),
     new Promise((_,rej)=>setTimeout(()=>rej(new Error('timeout')), timeout))
   ]);
+}
+
+/* 文生图设置弹窗 */
+const IMG_MODELS = {
+  pollinations:{label:'Pollinations.ai', tip:'免费免key'},
+  doubao:      {label:'豆包/火山引擎',  tip:'需Key+代理'},
+  wanx:        {label:'通义万相',        tip:'需Key+轮询'},
+  stability:   {label:'Stability AI',   tip:'需Key·支持CORS'},
+  dalle:       {label:'DALL·E 3',        tip:'需Key·支持CORS'},
+};
+function openImgConfig(){
+  $('#cfgModel').value = IMG_CONFIG.model;
+  // 回填已保存的密钥
+  $('#cfgDoubaoKey').value    = IMG_CONFIG.keys.doubao || '';
+  $('#cfgDoubaoModel').value  = IMG_CONFIG.keys.doubao_model || '';
+  $('#cfgDoubaoProxy').value  = IMG_CONFIG.keys.doubao_proxy || '';
+  $('#cfgWanxKey').value      = IMG_CONFIG.keys.wanx || '';
+  $('#cfgWanxProxy').value    = IMG_CONFIG.keys.wanx_proxy || '';
+  $('#cfgStabilityKey').value = IMG_CONFIG.keys.stability || '';
+  $('#cfgOpenaiKey').value    = IMG_CONFIG.keys.openai || '';
+  $('#cfgOpenaiProxy').value  = IMG_CONFIG.keys.openai_proxy || '';
+  onCfgModelChange();
+  $('#imgCfgMask').classList.add('show');
+}
+function closeImgConfig(){ $('#imgCfgMask').classList.remove('show'); }
+function onCfgModelChange(){
+  const m = $('#cfgModel').value;
+  ['cfgPollinations','cfgDoubao','cfgWanx','cfgStability','cfgDalle'].forEach(id=>{
+    const el = document.getElementById(id);
+    if(el) el.classList.toggle('hidden', !id.toLowerCase().includes(m));
+  });
+  // 特殊处理：pollinations 对应 cfgPollinations
+  document.getElementById('cfgPollinations').classList.toggle('hidden', m!=='pollinations');
+  $('#cfgStatus').textContent = '当前模型：' + (IMG_MODELS[m]?.label || m) + ' · ' + (IMG_MODELS[m]?.tip || '');
+}
+function saveImgConfigUI(){
+  IMG_CONFIG.model = $('#cfgModel').value;
+  IMG_CONFIG.keys.doubao         = $('#cfgDoubaoKey').value.trim();
+  IMG_CONFIG.keys.doubao_model   = $('#cfgDoubaoModel').value.trim();
+  IMG_CONFIG.keys.doubao_proxy   = $('#cfgDoubaoProxy').value.trim();
+  IMG_CONFIG.keys.wanx           = $('#cfgWanxKey').value.trim();
+  IMG_CONFIG.keys.wanx_proxy     = $('#cfgWanxProxy').value.trim();
+  IMG_CONFIG.keys.stability      = $('#cfgStabilityKey').value.trim();
+  IMG_CONFIG.keys.openai         = $('#cfgOpenaiKey').value.trim();
+  IMG_CONFIG.keys.openai_proxy   = $('#cfgOpenaiProxy').value.trim();
+  saveImgConfig();
+  closeImgConfig();
+  const m = IMG_MODELS[IMG_CONFIG.model];
+  toast('已切换文生图模型：' + (m?.label || IMG_CONFIG.model) + '（' + (m?.tip || '') + '）');
 }
 /* 把任意中文字面 prompt 转成更适合文生图的英文短句（提升出图质量） */
 function enhancePrompt(zh){
