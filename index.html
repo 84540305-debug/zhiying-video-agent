@@ -1303,6 +1303,9 @@ function onCfgModelChange(){
   // 特殊处理：pollinations 对应 cfgPollinations
   document.getElementById('cfgPollinations').classList.toggle('hidden', m!=='pollinations');
   $('#cfgStatus').textContent = '当前模型：' + (IMG_MODELS[m]?.label || m) + ' · ' + (IMG_MODELS[m]?.tip || '');
+  // 切模型即时保存到 IMG_CONFIG 并持久化，避免用户漏点「保存设置」导致设置丢失
+  try{ saveImgConfigUI(); }catch(e){ console.warn('auto-save cfg failed:', e); }
+  if(typeof refreshModelLabel === 'function') refreshModelLabel();
 }
 function saveImgConfigUI(){
   IMG_CONFIG.model = $('#cfgModel').value;
