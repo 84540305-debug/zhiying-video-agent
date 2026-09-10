@@ -720,7 +720,15 @@
       </div>
 
       <div id="cfgSeedance25" class="cfg-section hidden">
-        <p class="cfg-tip" style="border-left:3px solid #5aa87a;padding:8px 12px;background:#f5fbf7;margin:0 0 10px">🎬 <b>Seedance 2.5 视频直出</b>：每个分镜调用方舟异步任务生成真实动态视频（4~30s，480p/720p）。<br>💰 <b>10 秒 720p ≈ 17 元</b>，无免费试用；想省钱可换 <code>doubao-seedance-1-0-pro-fast-251015</code>。<br>⏱ 每段需 30 秒~3 分钟；用户首次播放该分镜时按需生成，结果缓存到项目。</p>
+        <div style="border-left:3px solid #5aa87a;padding:8px 12px;background:#f5fbf7;margin:0 0 10px;border-radius:0 6px 6px 0">
+          🎬 <b>Seedance 2.5 视频直出</b>：每个分镜调用方舟异步任务生成真实动态视频（4~30s，480p/720p）。<br>
+          💰 <b>10 秒 720p ≈ 17 元</b>，无免费试用；想省钱可换 <code>doubao-seedance-1-0-pro-fast-251015</code>。<br>
+          🔑 <b>API Key 与"豆包/火山引擎（Seedream）"共用同一个</b>。Seedream 那边填过 Key 的话，点下面按钮一键复用即可，无需重复粘贴。
+          <div style="margin-top:6px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+            <button type="button" onclick="(function(){var src=IMG_CONFIG.keys.doubao||'';var t=document.getElementById('cfgSeedance25Key');if(!src){alert('Seedream 板块还没填 Key，请先在上面的「豆包/火山引擎」填一个并保存');return;}t.value=src;t.dispatchEvent(new Event('input'));if(typeof saveImgConfigUI==='function') saveImgConfigUI();document.getElementById('cfgSeedance25KeyHint').textContent='✅ 已从 Seedream 复制 · 已自动保存';})()" style="padding:6px 12px;border-radius:6px;border:1px solid #2e7d4f;background:#eaf5ee;color:#1b5e3a;font-size:12.5px;cursor:pointer">📋 一键复制 Seedream 的 Key</button>
+            <span id="cfgSeedance25KeyHint" style="font-size:12px;color:#666"></span>
+          </div>
+        </div>
         <label class="cfg-label">火山引擎方舟 API Key <span class="cfg-required">*</span>（与 Seedream 共用同一个 Key）</label>
         <input class="cfg-input" id="cfgSeedance25Key" type="password" placeholder="留空则自动复用 Seedream 的 Key">
         <label class="cfg-label">视频模型</label>
