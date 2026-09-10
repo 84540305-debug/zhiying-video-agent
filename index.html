@@ -699,10 +699,16 @@ const LS_KEY = 'zhiying_projects_v2';
 
 /* ---------------- 调色板（文生图风格通道） ---------------- */
 const PALETTES = [
+  /* ---- 军事理论课专属配色 ---- */
+  {id:'army',  name:'军绿迷彩', kw:['国防','军事','军队','军人','军绿','迷彩','国防动员','人民战争','武装力量','民兵','预备役','国防教育'], bg:['#0d2818','#1a4a2e'], blobs:['#3a7d4f','#5aa87a','#a8c884']},
+  {id:'flag',  name:'战旗红金', kw:['战争','战役','战斗','作战','指挥','战略','战役','战术','战场','红色','传承','革命','解放军','胜利'], bg:['#2a0d0d','#7a1e1e'], blobs:['#e04438','#f0b830','#c89048']},
+  {id:'night', name:'夜战深蓝', kw:['信息化','信息战','网络战','电子战','网络安全','夜战','侦察','情报','雷达','卫星','导航','通信'], bg:['#04101f','#0a2848'], blobs:['#1a6dd0','#3a9eff','#5a8acf']},
+  {id:'steel', name:'钢铁灰蓝', kw:['高技术','武器','装备','导弹','舰艇','战机','坦克','无人机','激光','电磁','核','航天'], bg:['#14181e','#2a323e'], blobs:['#6a7a8e','#9ab0c4','#5a8ab0']},
+  /* ---- 通用配色 ---- */
   {id:'tech',  name:'科技蓝紫', kw:['ai','人工智能','科技','技术','数字','智能','互联网','数据','算法','未来','机器人','模型'], bg:['#0a1230','#1b2f66'], blobs:['#2d7dd2','#7c5cff','#38e8ff']},
   {id:'nature',name:'自然清新', kw:['自然','环保','绿色','生态','植物','春天','森林','气候'],           bg:['#06281d','#0d5a3c'], blobs:['#2fa36b','#a8e063','#2dd4ee']},
-  {id:'warm',  name:'暖阳橙金', kw:['教育','教学','课堂','温暖','人文','历史','文化','红色','传承'],     bg:['#33130a','#7a2e12'], blobs:['#e07840','#f6c26b','#ff8f6b']},
-  {id:'ocean', name:'深海青蓝', kw:['海洋','海洋','水','旅行','探索','世界','地球'],                      bg:['#04202f','#0a4d68'], blobs:['#14919e','#66d9e8','#4f9bff']},
+  {id:'warm',  name:'暖阳橙金', kw:['教育','教学','课堂','温暖','人文','历史','文化','传承'],     bg:['#33130a','#7a2e12'], blobs:['#e07840','#f6c26b','#ff8f6b']},
+  {id:'ocean', name:'深海青蓝', kw:['海洋','水','旅行','探索','世界','地球'],                      bg:['#04202f','#0a4d68'], blobs:['#14919e','#66d9e8','#4f9bff']},
   {id:'sunset',name:'暮色霞光', kw:['艺术','创意','设计','美学','音乐','电影','故事'],                    bg:['#2b0a3d','#6a1b5e'], blobs:['#d9436f','#ffb26b','#7c5cff']},
   {id:'ink',   name:'水墨雅黑', kw:['哲学','思想','社会','经济','政治','城市','生活'],                    bg:['#101318','#2b3242'], blobs:['#8b95ae','#e8e2d6','#4f9bff']},
 ];
@@ -858,11 +864,94 @@ const SLOTS = [
   {c:'起',   name:'开篇引入'},
   {c:'承',   name:'概念解析'},
   {c:'转',   name:'核心展开'},
-  {c:'合',   name:'场景演绎'},
+  {c:'合',   name:'应用实践'},
   {c:'升华', name:'总结升华'},
 ];
+/* ============ 军事理论课专业知识库 ============ */
+const MILITARY_KB = [
+  { id:'defense', title:'中国国防',
+    kw:['国防','中国国防','国防建设','国防政策','国防法规','国防领导体制','武装力量','边防','海防','空防'],
+    sections:[
+      `国防，是国家为防备和抵抗侵略、制止武装颠覆、保卫国家主权统一领土完整和安全而进行的军事活动。它是国家生存与发展的安全保障，也是综合国力的重要组成部分。`,
+      `我国国防的根本职能是维护国家主权、安全、发展利益。国防活动包括边防、海防、空防、国防动员、国防科研生产、国防教育等。我国奉行防御性国防政策，永远不称霸、不扩张。`,
+      `国防领导体制实行国务院与中央军委共同领导的体制。全国人民代表大会决定战争与和平问题；国务院领导和管理国防建设事业；中央军委领导全国武装力量。`,
+      `我国武装力量由中国人民解放军现役部队与预备役部队、武装警察部队、民兵组成。实行野战军、地方军、民兵三结合的武装力量体制，构筑全民防御体系。`,
+      `强大的国防是民族复兴的基石。新时代国防和军队建设目标是到本世纪中叶把人民军队全面建成世界一流军队。国无防不立，民无兵不安，这是颠扑不破的历史铁律。`
+    ]},
+  { id:'thought', title:'军事思想',
+    kw:['军事思想','孙子兵法','毛泽东军事思想','战略思想','战争观','军事哲学','兵法','谋略','作战原则'],
+    sections:[
+      `军事思想是关于战争、军队建设和国防的理性认识。它揭示战争规律，指导军事实践，是人类军事文化的智慧结晶。从《孙子兵法》到毛泽东军事思想，思想的光芒穿越千年。`,
+      `《孙子兵法》提出"兵者，国之大事"的战争观、"知己知彼"的认知原则、"不战而屈人之兵"的全胜战略，至今仍被世界各国军事院校奉为经典。`,
+      `毛泽东军事思想的核心是人民战争理论：以人民军队为骨干，依靠人民群众，进行革命战争。提出"枪杆子里面出政权"的论断，确立积极防御、持久胜敌的战略方针。`,
+      `新时代军事思想强调信息化条件下的人民战争，注重联合作战、体系对抗、精确打击。从"小米加步枪"到信息化、智能化作战，思想与实践始终在辩证中升华。`,
+      `军事思想的精髓在于：因势而变，以智胜力。理解军事思想，不仅是理解战争，更是理解战略思维、系统思维与辩证思维在极端复杂场景下的运用。`
+    ]},
+  { id:'infowar', title:'信息化战争',
+    kw:['信息化战争','信息战','网络战','电子战','网络安全','作战体系','制信息权','精确打击','联合作战'],
+    sections:[
+      `信息化战争，是以信息技术为主导、以信息为核心资源、以信息化武器装备为主要作战手段的战争形态。它标志着人类战争从机械化向信息化的历史性跃迁。`,
+      `信息化战争的基本特征：战场透明化、打击精确化、反应实时化、指挥网络化、力量一体化。制信息权成为决定战争胜负的关键，谁掌握信息优势，谁就掌握战场主动。`,
+      `信息化作战体系由情报侦察、指挥控制、精确打击、综合保障等分系统构成。各分系统通过网络链接，形成"感知—决策—行动—评估"的闭环作战链路。`,
+      `海湾战争、科索沃战争、伊拉克战争是信息化战争的典型战例。联合作战从陆海空协同发展到陆海空天电多维一体，网络空间成为继陆海空天后的第五维战场。`,
+      `面对信息化战争的挑战，我国加快推进军事智能化、机械化信息化复合发展。理解信息化战争，就是理解未来战争的形态演变与制胜机理。`
+    ]},
+  { id:'hitech', title:'军事高技术',
+    kw:['军事高技术','武器装备','导弹','无人机','隐身','激光武器','电磁','航天','核技术','精确制导','卫星','雷达'],
+    sections:[
+      `军事高技术，是应用于军事领域的尖端技术群，包括精确制导、隐身、航天、电子战、核生化、指挥信息系统等。它从根本上改变了武器性能和作战方式。`,
+      `精确制导技术使武器命中精度大幅提升，"发现即摧毁"成为现实。巡航导弹圆概率误差可达米级，制导炸弹效率是普通炸弹的数十倍。`,
+      `隐身技术通过减小雷达反射截面、红外特征、声学信号，使战机、舰艇、导弹难以被探测。无人机技术则实现了"零伤亡"侦察与打击。`,
+      `航天技术为军事提供通信、导航、侦察、气象等保障。北斗卫星导航系统使我国摆脱对国外导航系统的依赖。网络攻防、电子干扰成为夺取信息优势的利器。`,
+      `军事高技术的竞争本质是科技实力与综合国力的竞争。谁占据技术制高点，谁就占据未来战场主动权，这是大国博弈的深层逻辑。`
+    ]},
+  { id:'strategy', title:'国际战略环境',
+    kw:['国际战略','战略环境','地缘政治','大国关系','安全形势','亚太','台海','南海','周边安全','全球安全'],
+    sections:[
+      `国际战略环境，是一定时期内国际关系格局、大国力量对比、地区安全形势的综合状态。它是判断国家安全威胁、制定国防战略的基本依据。`,
+      `当前国际战略格局呈"一超多强"向多极化演变的态势。大国关系在合作与竞争中重塑，地缘政治博弈加剧，全球治理体系面临深刻变革。`,
+      `我国周边安全环境总体稳定但挑战增多：东海、南海争端、台海局势、边境安全等问题复杂交织。大国军事部署调整、地区热点此起彼伏。`,
+      `非传统安全威胁上升：恐怖主义、网络安全、跨国犯罪、公共卫生、气候变化等。安全内涵从军事安全扩展到政治、经济、文化、社会、网络等综合安全。`,
+      `洞察国际战略环境，是培养战略视野的必修课。国家安全利益延伸到哪里，军事力量就应具备到哪里提供保障的能力。`
+    ]},
+  { id:'mobilize', title:'国防动员',
+    kw:['国防动员','战争动员','人民防空','民兵','预备役','后勤动员','经济动员','政治动员','武装动员'],
+    sections:[
+      `国防动员，是国家由平时状态转入战时状态，将国防潜力转化为国防实力的活动。它是联结经济建设与国防建设的桥梁，是赢得战争的重要保障。`,
+      `国防动员包括武装力量动员、国民经济动员、人民防空动员、政治动员等。武装力量动员将现役部队扩编、预备役转服现役、民兵参战支前。`,
+      `国民经济动员将民用生产能力转向军工生产，保障战争物资需求。交通、通信、医疗、科技等领域的动员，使全社会资源为战争服务。`,
+      `人民防空是国防的重要组成部分，包括预警报知、人员疏散、隐蔽伪装、救援抢修等。"长期准备、重点建设、平战结合"是人防建设的基本方针。`,
+      `现代战争是综合国力的较量，国防动员水平直接关系战争胜负。全民国防教育是动员的思想基础，每位公民都是国防动员体系的一环。`
+    ]},
+  { id:'airdef', title:'人民防空',
+    kw:['人民防空','人防','防空警报','防空洞','疏散','隐蔽','空袭','防护工程','人防教育','三防'],
+    sections:[
+      `人民防空，简称人防，是动员和组织人民群众防备敌人空中袭击、消除空袭后果所采取的措施和行动。它是国防的重要组成部分，也是城市公共安全体系的重要环节。`,
+      `人防的基本任务：发出防空警报、组织人员疏散隐蔽、实行灯火管制、组织抢险抢修、消除空袭后果。核心原则是"长期准备、重点建设、平战结合"。`,
+      `防空警报分为预先警报、空袭警报、解除警报三种。预先警报鸣36秒停24秒反复3遍；空袭警报鸣6秒停6秒反复15遍；解除警报连续长鸣3分钟。`,
+      `防护工程包括防空地下室、地下铁道、人防工事等。遭遇空袭时应迅速进入防空设施，无设施时利用地形地物就近隐蔽，远离窗户和危险品。`,
+      `人民防空不仅是军事任务，更是公民素养。掌握"走、藏、消"的基本技能——会疏散转移、会隐蔽防护、会消除后果，是每位公民的必修课。`
+    ]},
+  { id:'forces', title:'武装力量',
+    kw:['武装力量','解放军','人民军队','现役','预备役','武警','民兵','军种','战区','联合作战','五大战区'],
+    sections:[
+      `中华人民共和国武装力量由中国人民解放军、中国人民武装警察部队、民兵组成。实行中国共产党对军队的绝对领导，中央军委统一领导全国武装力量。`,
+      `中国人民解放军由陆军、海军、空军、火箭军、战略支援部队等军种组成。2016年军改后形成"军委管总、战区主战、军种主建"的新格局。`,
+      `五大战区：东部、南部、西部、北部、中部战区，分别担负不同战略方向的作战任务。战区是联合作战指挥机构，负责本方向联合作战指挥。`,
+      `武装警察部队担负内卫、边防、警卫等任务，是国家处置突发事件的重要力量。民兵是不脱产的群众武装组织，是人民战争的基础和后备力量。`,
+      `建设世界一流军队，需要强大的现役、充足的预备役、广泛的民兵三位一体。军民融合发展战略使经济与国防建设协调发展，实现富国与强军统一。`
+    ]},
+];
+/* 军事主题匹配：返回命中的知识条目，否则 null */
+function matchMilitaryTopic(prompt){
+  const t = String(prompt||'').toLowerCase();
+  for(const item of MILITARY_KB){
+    if(item.kw.some(k=> t.includes(k.toLowerCase()))) return item;
+  }
+  return null;
+}
 function topicOf(p){
-  let t = String(p||'').replace(/请|帮我|给我|制作|生成|做|一个|一支|一部|关于|的|视频|短片|动画|介绍|科普|宣传|知识|一下|我想|我要/g,'').trim();
+  let t = String(p||'').replace(/请|帮我|给我|制作|生成|做|一个|一支|一部|关于|的|视频|短片|动画|介绍|科普|宣传|知识|一下|我想|我要|教学|课件|讲稿/g,'').trim();
   if(!t) t = String(p||'').trim();
   return t.slice(0,24) || '未命名主题';
 }
@@ -870,34 +959,44 @@ function pickOf(a){ return a[Math.floor(Math.random()*a.length)]; }
 // 第1步：生成脚本（五段式完整文稿）
 function generateScript(prompt, extraText){
   const topic = topicOf(prompt);
-  const V = [
-    [`提到${topic}，很多人既熟悉又陌生。它从哪里来？又将把我们的生活带向何方？`,
-     `如果用三十秒讲清${topic}，你会从哪里讲起？让我们从一个小问题开始。`],
-    [`首先回到原点：${topic}的本质，是把复杂的信息变得简单，把割裂的环节重新连接起来。`,
-     `拆开来看，${topic}由三个关键要素构成：内容、技术与场景，三者环环相扣、缺一不可。`],
-    [`随着技术持续演进，${topic}已经悄悄走进学习、工作与日常生活的每一个角落。`,
-     `今天的${topic}，不再停留在概念演示，而是真实可用、触手可及的生产力。`],
-    [`想象一下：只需一句话，创意即可变成作品；只需一次点击，知识即可变成影片。这正是${topic}带来的改变。`,
-     `从辅助到主导，从工具到伙伴——${topic}正在重新定义创作的边界与效率。`],
-    [`${topic}不是遥远的未来，而是正在发生的现在。下一部作品，由你开启。`,
-     `这就是${topic}。理解它，就是理解这个时代创作方式的下一次跃迁。`],
-  ];
-  // 上传文稿优先：附件文本中提取足量语句时，直接采用真实内容组织脚本
+  // 上传文稿优先
   let src=null;
   if(extraText && String(extraText).trim()){
     const sents = String(extraText).split(/[。！？!?\n]+/).map(s=>s.replace(/\s+/g,' ').trim()).filter(s=>s.length>=8);
     if(sents.length>=5) src=sents;
   }
+  // 军事主题命中 → 使用专业知识库
+  const mil = matchMilitaryTopic(prompt);
   const parts = SLOTS.map((s,i)=>{
     let text;
     if(src){
       const per=Math.ceil(src.length/SLOTS.length);
       const seg=src.slice(i*per,(i+1)*per).join('。');
-      text = seg.length>=12 ? seg.slice(0,140)+(seg.length>140?'…':'') : pickOf(V[i]);
-    }else text = pickOf(V[i]);
+      text = seg.length>=12 ? seg.slice(0,140)+(seg.length>140?'…':'') : (mil? mil.sections[i] : pickOf(V_GENERIC[i]));
+    }else if(mil){
+      text = mil.sections[i];
+    }else{
+      text = pickOf(vGeneric(topic)[i]);
+    }
     return {slot:`${s.c} · ${s.name}`, title:s.name, text};
   });
-  return { topic, title: topic+' · AI成片', parts, fromUpload: !!src };
+  return { topic: mil?mil.title:topic, title: (mil?mil.title:topic)+' · AI成片', parts, fromUpload: !!src, fromKB: !!mil && !src };
+}
+// 通用模板（非军事主题兜底）
+function vGeneric(topic){
+  const t = topic || '本主题';
+  return [
+    [`提到${t}，很多人既熟悉又陌生。它从哪里来？又将把我们的生活带向何方？`,
+     `如果用三十秒讲清${t}，你会从哪里讲起？让我们从一个小问题开始。`],
+    [`首先回到原点：${t}的本质，是把复杂的信息变得简单，把割裂的环节重新连接起来。`,
+     `拆开来看，${t}由三个关键要素构成：内容、技术与场景，三者环环相扣、缺一不可。`],
+    [`随着技术持续演进，${t}已经悄悄走进学习、工作与日常生活的每一个角落。`,
+     `今天的${t}，不再停留在概念演示，而是真实可用、触手可及的生产力。`],
+    [`想象一下：只需一句话，创意即可变成作品；只需一次点击，知识即可变成影片。这正是${t}带来的改变。`,
+     `从辅助到主导，从工具到伙伴——${t}正在重新定义创作的边界与效率。`],
+    [`${t}不是遥远的未来，而是正在发生的现在。下一部作品，由你开启。`,
+     `这就是${t}。理解它，就是理解这个时代创作方式的下一次跃迁。`],
+  ];
 }
 // 第2步：生成大纲（逐段核心要点 + 视觉提示）
 function generateOutline(script){
@@ -1373,7 +1472,8 @@ async function runPipeline(prompt, files){
   const script = generateScript(prompt, textCtx);
   const scriptText = script.parts.map((p,i)=>`【${p.slot}】\n${p.text}`).join('\n\n');
   updateMsg(m1,`✅ 第 1 步 · 视频脚本生成完成<br><b>《${esc(script.title)}》</b>（五段式完整文稿）`
-    +(script.fromUpload?`<br>📎 脚本内容取自上传文稿：${textFiles.map(f=>esc(f.name)).join('、')}`:''));
+    +(script.fromUpload?`<br>📎 脚本内容取自上传文稿：${textFiles.map(f=>esc(f.name)).join('、')}`:'')
+    +(script.fromKB?`<br>🎖 脚本内容取自<b>军事理论课专业知识库</b>，覆盖该章节教学要点`:''));
   addMsg('agent',`<div class="script">${esc(scriptText)}</div>`);
   setStep(track,0,'done');
 
@@ -1767,7 +1867,9 @@ async function runPptPipeline(prompt, files){
   setStep(track,0,'run');
   const m1=addMsg('agent','✍️ 第 1 步 · 生成演示稿脚本…',true); await sleep(900);
   const script = generatePptScript(prompt, textCtx, topic);
-  updateMsg(m1,`✅ 第 1 步 · 演示稿脚本完成<br><b>《${esc(script.title)}》</b>（共 ${script.parts.length} 页）`);
+  updateMsg(m1,`✅ 第 1 步 · 演示稿脚本完成<br><b>《${esc(script.title)}》</b>（共 ${script.parts.length} 页）`
+    +(script.fromUpload?`<br>📎 脚本内容取自上传文稿`:'')
+    +(script.fromKB?`<br>🎖 脚本内容取自<b>军事理论课专业知识库</b>，按教学章节结构组织`:''));
   addMsg('agent',`<div class="script">${esc(script.parts.map((p,i)=>`【${i+1} · ${p.slot}】\n${p.text}`).join('\n\n'))}</div>`);
   setStep(track,0,'done');
 
@@ -1834,15 +1936,22 @@ async function runPptPipeline(prompt, files){
   chatDisable(false);
 }
 
-/* 演示稿脚本生成（基于提示词 + 附件文稿） */
+/* 演示稿脚本生成（基于提示词 + 附件文稿 + 军事知识库） */
 function generatePptScript(prompt, textCtx, topic){
-  const slots = ['封面 · 课程主题','引入 · 背景与意义','要点一 · 核心概念','要点二 · 关键特征','要点三 · 应用实践','要点四 · 案例分析','总结 · 行动建议'];
-  let parts;
+  const slots = ['封面 · 课程主题','引入 · 背景意义','核心概念 · 定义阐释','关键特征 · 判别要点','应用实践 · 典型场景','案例分析 · 深度剖析','总结 · 思考与行动'];
+  let parts, useTitle = topic;
+  // 军事知识库命中优先
+  const mil = matchMilitaryTopic(prompt);
   if(textCtx && textCtx.length>200){
     const sents = textCtx.split(/[。！？!?\n]+/).map(s=>s.replace(/\s+/g,' ').trim()).filter(s=>s.length>=8);
     const per = Math.ceil(sents.length/7);
     parts = slots.map((slot,i)=>({
       slot, text: (sents.slice(i*per,(i+1)*per).join('。')||`这是关于${topic}的第${i+1}部分阐述。`).slice(0,160)
+    }));
+  }else if(mil){
+    useTitle = mil.title;
+    parts = slots.map((slot,i)=>({
+      slot, text: mil.sections[Math.min(i, mil.sections.length-1)] || mil.sections[mil.sections.length-1]
     }));
   }else{
     const V = [
@@ -1856,7 +1965,7 @@ function generatePptScript(prompt, textCtx, topic){
     ];
     parts = slots.map((slot,i)=>({slot, text: V[i]}));
   }
-  return { topic, title: topic+' · 教学演示稿', parts, fromUpload: !!(textCtx && textCtx.length>200) };
+  return { topic: useTitle, title: useTitle+' · 教学演示稿', parts, fromUpload: !!(textCtx && textCtx.length>200), fromKB: !!mil && !(textCtx && textCtx.length>200) };
 }
 function generatePptOutline(script){
   const vtpl = ['居中标题页','项目符号页','图文双栏','数据卡片','对比双栏','案例分析','结语总结'];
@@ -1888,32 +1997,34 @@ function splitPptPages(script, prompt, outline){
   pages.push({
     id: pages.length+1,
     type:'summary',
-    title:'结语 · 行动建议',
+    title:'结语 · 思考与行动',
     kicker:'SUMMARY',
     bullets:[
-      '回顾：本文档要点已全部覆盖',
-      '建议：课后请结合教材第 N 章进行延伸阅读',
-      '行动：完成随堂思考题并参与小组研讨'
+      '回顾：本节核心知识点已系统梳理，建议结合教材延伸阅读',
+      '思考：如何在新时代背景下理解本主题的国防意义？',
+      '行动：完成随堂思考题，参与小组研讨，关注时事动态'
     ]
   });
   return pages;
 }
 function fillPptPageContent(page, idx, prompt){
-  if(page.type==='title' || page.type==='summary') return; // 标题页和总结页有预设内容
-  const p = state.project.script.parts[idx]; // 对应第 idx 段脚本
-  const sentences = (p?p.text:'').split(/[。！？!?]/).map(s=>s.replace(/^[，、,:：\s]+/,'').trim()).filter(s=>s.length>=6);
-  // 优先取 3-5 句作为要点
-  let bullets = sentences.slice(0,5);
-  if(bullets.length<3){
-    bullets = (bullets+'').split(/[，、]/).map(s=>s.trim()).filter(s=>s.length>=6);
+  if(page.type==='title' || page.type==='summary') return;
+  const p = state.project.script.parts[idx];
+  const raw = (p?p.text:'');
+  // 从教学文稿中抽取要点：按句号/分号切分，取 3-5 个完整句
+  let sentences = raw.split(/[。；！？!?]/).map(s=>s.replace(/^[，、,:：\s]+/,'').trim()).filter(s=>s.length>=8);
+  // 如果句子少，再按逗号/顿号切分
+  if(sentences.length<3){
+    sentences = raw.split(/[，、,]/).map(s=>s.replace(/^[，、,:：\s]+/,'').trim()).filter(s=>s.length>=6);
   }
+  let bullets = sentences.slice(0,5).map(s=> s.length>50 ? s.slice(0,48)+'…' : s);
+  // 兜底：军事理论课教学专业要点
   if(bullets.length<3){
-    // 兜底：用类型化默认要点
-    const FALLBACK = {
-      'content': ['基本概念：'+page.title,'关键特征与判别标准','实际应用与典型场景'],
-      'two-col': ['核心要点一','关键判别标准','应用场景示例']
-    };
-    bullets = FALLBACK[page.type] || FALLBACK.content;
+    const mil = matchMilitaryTopic(prompt);
+    const FALLBACK = mil
+      ? ['定义：'+page.title+'的核心内涵与边界', '特征：主要特点与判别标准', '应用：国防实践与典型场景', '启示：对大学生国防教育的意义']
+      : ['基本概念：'+page.title, '关键特征与判别标准', '实际应用与典型场景', '学习启示与课后思考'];
+    bullets = FALLBACK;
   }
   page.bullets = bullets;
 }
