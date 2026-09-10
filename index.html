@@ -602,6 +602,9 @@
       <button class="tbtn" id="btnFull" onclick="toggleFull()">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>全屏
       </button>
+      <button class="tbtn" id="btnModel" onclick="openImgConfig()" title="切换文生图模型（Pollinations / 豆包 Seedream 等）">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3.2"/><path d="M12 2.8v3M12 18.2v3M2.8 12h3M18.2 12h3M5.5 5.5l2.1 2.1M16.4 16.4l2.1 2.1M18.5 5.5l-2.1 2.1M7.6 16.4l-2.1 2.1"/></svg><span id="modelLabel">文生图模型</span>
+      </button>
       <button class="tbtn rec" id="btnRec" onclick="toggleRecord()">
         <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="6.5"/></svg><span id="recLabel">录屏导出</span>
       </button>
@@ -1119,8 +1122,18 @@ function saveImgConfigUI(){
   IMG_CONFIG.keys.openai_proxy   = $('#cfgOpenaiProxy').value.trim();
   saveImgConfig();
   closeImgConfig();
+  refreshModelLabel();
   const m = IMG_MODELS[IMG_CONFIG.model];
   toast('已切换文生图模型：' + (m?.label || IMG_CONFIG.model) + '（' + (m?.tip || '') + '）');
+}
+/* 工具栏「文生图模型」按钮上显示当前模型，一眼看清正在用哪条通道 */
+function refreshModelLabel(){
+  const el = document.getElementById('modelLabel');
+  if(!el) return;
+  const m = IMG_MODELS[IMG_CONFIG.model] || { label: IMG_CONFIG.model };
+  el.textContent = m.label;
+  const btn = document.getElementById('btnModel');
+  if(btn) btn.title = '当前文生图模型：' + m.label + (m.tip ? '（' + m.tip + '）' : '') + ' — 点击切换';
 }
 /* 把任意中文字面 prompt 转成更适合文生图的英文短句（提升出图质量） */
 function enhancePrompt(zh){
@@ -3000,7 +3013,7 @@ function toast(msg){
 
 /* ---------------- 初始化 ---------------- */
 window.addEventListener('DOMContentLoaded', ()=>{
-  loadProjects(); renderHistory();
+  loadProjects(); renderHistory(); refreshModelLabel();
   $('#chatInput').addEventListener('keydown', e=>{
     if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); sendChat(); }
   });
