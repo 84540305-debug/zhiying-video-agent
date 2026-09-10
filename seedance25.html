@@ -1,0 +1,712 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Seedance 2.5 视频直出工坊 · 知影 ZhiYing</title>
+<meta name="description" content="输入一句话，调用豆包 Seedance 2.5 文生视频模型，直接生成 MP4 微课视频。">
+<style>
+:root{
+  --bg:#0d2818; --bg2:#163d27; --panel:#ffffff; --ink:#0f2418; --ink2:#4a5e52;
+  --line:#dfe9e2; --line2:#c2d4c8; --brand:#2e7d4f; --brand2:#5aa87a; --brand3:#ffd97a;
+  --danger:#c0392b; --ok:#2e7d4f; --warn:#d97706; --radius:14px; --shadow:0 8px 28px rgba(0,0,0,.08);
+  font-family:-apple-system,"PingFang SC","Microsoft Yahei",sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:var(--bg);color:#fff;min-height:100vh}
+body{
+  background:
+    radial-gradient(1200px 600px at 10% -10%, rgba(90,168,122,.35), transparent 60%),
+    radial-gradient(900px 500px at 90% 110%, rgba(46,125,79,.30), transparent 60%),
+    linear-gradient(180deg, #0d2818 0%, #07170d 100%);
+}
+/* 顶部导航 */
+.topbar{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:18px 26px;border-bottom:1px solid rgba(255,255,255,.08);
+  backdrop-filter:blur(12px);background:rgba(13,40,24,.55);position:sticky;top:0;z-index:50;
+}
+.brand{display:flex;align-items:center;gap:12px;font-weight:700;font-size:17px;letter-spacing:.5px}
+.brand .logo{
+  width:36px;height:36px;border-radius:10px;
+  background:linear-gradient(135deg,#5aa87a,#2e7d4f);
+  display:flex;align-items:center;justify-content:center;font-size:18px;color:#fff;
+  box-shadow:0 4px 14px rgba(46,125,79,.4);
+}
+.brand .ver{font-size:11px;color:var(--brand3);background:rgba(255,217,122,.15);padding:2px 7px;border-radius:6px;font-weight:500}
+.iconbtn{
+  background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);color:#fff;
+  padding:8px 14px;border-radius:10px;cursor:pointer;font-size:13px;
+  display:inline-flex;align-items:center;gap:6px;transition:.15s;
+}
+.iconbtn:hover{background:rgba(255,255,255,.14)}
+/* 主体 */
+main{max-width:1080px;margin:0 auto;padding:32px 20px 80px}
+.hero{text-align:center;margin:18px 0 36px}
+.hero h1{font-size:34px;margin:6px 0 10px;line-height:1.2;font-weight:700}
+.hero h1 span{color:var(--brand3)}
+.hero p{color:rgba(255,255,255,.7);font-size:15px;margin:0 auto;max-width:620px}
+.badge{
+  display:inline-block;font-size:12px;padding:4px 12px;border-radius:99px;
+  background:rgba(255,217,122,.15);color:var(--brand3);border:1px solid rgba(255,217,122,.3);margin-bottom:14px;
+}
+/* 卡片 */
+.card{
+  background:var(--panel);color:var(--ink);border-radius:var(--radius);
+  padding:22px 24px;box-shadow:var(--shadow);margin-bottom:20px;
+}
+.card h2{font-size:16px;margin:0 0 14px;display:flex;align-items:center;gap:8px;color:var(--ink)}
+.card h2 .step{background:var(--brand);color:#fff;width:24px;height:24px;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;font-size:13px;font-weight:700}
+.row{display:flex;gap:14px;flex-wrap:wrap}
+.row .field{flex:1;min-width:140px}
+label{display:block;font-size:13px;color:var(--ink2);margin-bottom:6px;font-weight:500}
+input[type=text],input[type=password],select,textarea{
+  width:100%;padding:10px 12px;border:1.5px solid var(--line);border-radius:10px;
+  font-size:14px;outline:none;transition:.15s;background:#fafdfb;color:var(--ink);font-family:inherit
+}
+input:focus,select:focus,textarea:focus{border-color:var(--brand);box-shadow:0 0 0 3px rgba(46,125,79,.12)}
+textarea{min-height:96px;resize:vertical;line-height:1.6}
+.help{font-size:12px;color:var(--ink2);margin-top:6px;line-height:1.5}
+.help b{color:var(--brand)}
+.choices{display:flex;gap:8px;flex-wrap:wrap}
+.choice{
+  padding:7px 14px;border:1.5px solid var(--line);border-radius:99px;
+  font-size:13px;cursor:pointer;background:#fff;color:var(--ink);transition:.15s;user-select:none;
+}
+.choice.on{background:var(--brand);color:#fff;border-color:var(--brand)}
+.choice:hover:not(.on){border-color:var(--brand2)}
+.primary{
+  display:inline-flex;align-items:center;justify-content:center;gap:8px;
+  background:linear-gradient(135deg,#2e7d4f,#3a9558);color:#fff;border:none;
+  padding:14px 28px;border-radius:12px;font-size:15px;font-weight:600;cursor:pointer;transition:.2s;
+  box-shadow:0 6px 18px rgba(46,125,79,.35);
+}
+.primary:hover:not(:disabled){transform:translateY(-1px);box-shadow:0 10px 26px rgba(46,125,79,.45)}
+.primary:disabled{background:#a8b5ac;cursor:not-allowed;box-shadow:none}
+.ghost{
+  background:#fff;border:1.5px solid var(--line);color:var(--ink);
+  padding:10px 18px;border-radius:10px;cursor:pointer;font-size:13px;
+}
+.ghost:hover{border-color:var(--brand);color:var(--brand)}
+.actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:14px}
+/* 进度 */
+.progress{
+  height:8px;background:var(--line);border-radius:99px;overflow:hidden;margin-top:14px;
+}
+.progress-fill{height:100%;background:linear-gradient(90deg,var(--brand),var(--brand2));border-radius:99px;width:0%;transition:.3s}
+.status{display:flex;justify-content:space-between;align-items:center;font-size:13px;color:var(--ink2);margin-top:8px}
+.status .dot{width:8px;height:8px;border-radius:50%;background:var(--warn);display:inline-block;margin-right:5px;animation:pulse 1.5s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.status .dot.ok{background:var(--ok);animation:none}
+.status .dot.err{background:var(--danger);animation:none}
+/* 视频区 */
+video{
+  width:100%;max-height:520px;border-radius:12px;background:#000;display:block;
+  box-shadow:0 4px 16px rgba(0,0,0,.15);
+}
+.preview-meta{display:flex;gap:18px;flex-wrap:wrap;margin-top:12px;font-size:13px;color:var(--ink2)}
+.preview-meta b{color:var(--brand)}
+.empty{
+  padding:60px 20px;text-align:center;color:var(--ink2);
+  border:2px dashed var(--line);border-radius:12px;
+}
+.empty .icon{font-size:42px;margin-bottom:10px;opacity:.5}
+/* 历史 */
+.seg-list{display:flex;flex-direction:column;gap:14px}
+.seg{
+  display:flex;gap:14px;padding:14px;border:1.5px solid var(--line);border-radius:12px;
+  background:#fafdfb;align-items:center;
+}
+.seg video{width:160px;height:90px;border-radius:8px;flex-shrink:0}
+.seg .info{flex:1;min-width:0}
+.seg .info .ph{
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:13px;color:var(--ink2);margin-bottom:4px;
+}
+.seg .info .badge2{font-size:11px;padding:2px 7px;border-radius:5px;display:inline-block;margin-right:5px}
+.seg .info .badge2.ok{background:#eaf6ee;color:var(--ok)}
+.seg .info .badge2.pending{background:#fff4e0;color:var(--warn)}
+.seg .info .badge2.fail{background:#fdecea;color:var(--danger)}
+/* 设置弹窗 */
+dialog{
+  border:none;border-radius:14px;padding:0;max-width:560px;width:90vw;
+  box-shadow:0 20px 60px rgba(0,0,0,.3);
+}
+dialog::backdrop{background:rgba(7,23,13,.7);backdrop-filter:blur(4px)}
+.dialog-head{
+  background:linear-gradient(135deg,#2e7d4f,#3a9558);color:#fff;padding:18px 22px;
+  border-radius:14px 14px 0 0;display:flex;justify-content:space-between;align-items:center;
+}
+.dialog-body{padding:22px;color:var(--ink);max-height:70vh;overflow-y:auto}
+.x{background:rgba(255,255,255,.15);border:none;color:#fff;width:30px;height:30px;border-radius:8px;cursor:pointer;font-size:18px}
+.x:hover{background:rgba(255,255,255,.25)}
+.tip{font-size:12px;color:var(--ink2);background:#f6faf7;border-left:3px solid var(--brand);padding:10px 12px;border-radius:6px;margin-top:10px;line-height:1.6}
+.cost-tbl{width:100%;border-collapse:collapse;margin-top:14px;font-size:13px}
+.cost-tbl th,.cost-tbl td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:left}
+.cost-tbl th{background:#f6faf7;color:var(--ink);font-weight:600}
+.cost-tbl td b{color:var(--brand)}
+footer{text-align:center;color:rgba(255,255,255,.4);font-size:12px;margin-top:30px}
+.toast{
+  position:fixed;bottom:30px;left:50%;transform:translateX(-50%);
+  background:rgba(15,36,24,.92);color:#fff;padding:12px 22px;border-radius:10px;
+  font-size:14px;box-shadow:0 6px 20px rgba(0,0,0,.3);z-index:200;
+  animation:slideup .3s ease;
+}
+@keyframes slideup{from{opacity:0;transform:translate(-50%,20px)}to{opacity:1}}
+.hidden{display:none!important}
+@media (max-width:640px){
+  .hero h1{font-size:26px}
+  main{padding:20px 14px 60px}
+  .seg video{width:120px;height:68px}
+  .seg{flex-direction:column;align-items:flex-start}
+  .seg video{align-self:flex-start}
+}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <div class="logo">影</div>
+    <span>Seedance 2.5 视频直出工坊</span>
+    <span class="ver">v1.0</span>
+  </div>
+  <button class="iconbtn" onclick="openSettings()">⚙ 设置</button>
+</header>
+
+<main>
+  <section class="hero">
+    <div class="badge">🇨🇳 接入火山引擎 · 浏览器直连 · 无需代理</div>
+    <h1>输入一句话，<span>AI 直接出视频</span></h1>
+    <p>基于豆包 Seedance 2.5 文生视频模型。写一段提示词，等上 1～3 分钟，下载即可用于教学的 MP4 视频。</p>
+  </section>
+
+  <!-- 配置状态 -->
+  <div class="card" id="cfgStatus">
+    <h2><span class="step">1</span>API 连接状态</h2>
+    <div id="cfgSummary">
+      <div class="empty"><div class="icon">🔑</div>尚未配置 API Key，请点右上角「⚙ 设置」填写</div>
+    </div>
+  </div>
+
+  <!-- 提示词输入 -->
+  <div class="card">
+    <h2><span class="step">2</span>输入提示词</h2>
+
+    <label>视频内容描述（中文英文均可，建议写镜头/动作/氛围）</label>
+    <textarea id="prompt" placeholder="例：一支现代化军队在黎明时分整齐列队走过广场，五星红旗迎风飘扬，远处天安门城楼被金色阳光照亮，气氛庄严肃穆，电影质感。">制作一支关于信息化战争特点的军事理论教学短片。一支现代化军队在黎明时分列队走过广场。</textarea>
+
+    <div class="row" style="margin-top:14px">
+      <div class="field">
+        <label>时长（秒，5~10 最佳）</label>
+        <div class="choices" id="durationChoices">
+          <div class="choice" data-v="5">5</div>
+          <div class="choice on" data-v="8">8</div>
+          <div class="choice" data-v="10">10</div>
+          <div class="choice" data-v="15">15</div>
+        </div>
+      </div>
+      <div class="field">
+        <label>宽高比</label>
+        <div class="choices" id="ratioChoices">
+          <div class="choice on" data-v="16:9">16:9 横屏</div>
+          <div class="choice" data-v="9:16">9:16 竖屏</div>
+          <div class="choice" data-v="1:1">1:1 方形</div>
+        </div>
+      </div>
+      <div class="field">
+        <label>是否生成音轨</label>
+        <div class="choices" id="audioChoices">
+          <div class="choice on" data-v="true">生成 AI 配乐</div>
+          <div class="choice" data-v="false">纯画面无声</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="tip">
+      💡 <b>提示词建议</b>：写「主体 + 动作 + 场景 + 镜头 + 氛围」，例：「<b>一支特种部队</b>在城市废墟中<b>搜索前进</b>，<b>清晨</b>薄雾笼罩，<b>俯拍跟拍</b>，<b>紧张悬疑</b>的电影质感」。越具体效果越好。
+    </div>
+
+    <div class="actions">
+      <button class="primary" id="btnGenerate" onclick="doGenerate()">
+        <span id="btnGenText">🎬 立即生成视频</span>
+      </button>
+      <button class="ghost" onclick="resetForm()">清空</button>
+      <span id="estCost" style="font-size:13px;color:var(--ink2);margin-left:auto">预估费用：<b>~14 元</b>（8 秒 720p 约 1.7 元/秒）</span>
+    </div>
+
+    <div class="progress" id="progress" style="display:none"><div class="progress-fill" id="progressFill"></div></div>
+    <div class="status" id="status" style="display:none"><span><span class="dot" id="statusDot"></span><span id="statusText">提交中</span></span><span id="statusTime">0:00</span></div>
+  </div>
+
+  <!-- 视频输出 -->
+  <div class="card" id="outputCard" style="display:none">
+    <h2><span class="step">3</span>生成结果</h2>
+    <video id="outVideo" controls playsinline></video>
+    <div class="preview-meta">
+      <span>📐 <b id="metaRatio">16:9</b></span>
+      <span>⏱ <b id="metaDur">8</b> 秒</span>
+      <span>💰 实际消耗 <b id="metaCost">14</b> 元</span>
+      <span>🕓 用时 <b id="metaTime">0</b> 秒</span>
+    </div>
+    <div class="actions" style="margin-top:16px">
+      <button class="primary" onclick="downloadCurrent()">⬇ 下载 MP4</button>
+      <button class="ghost" onclick="copyVideoUrl()">复制视频链接</button>
+      <button class="ghost" onclick="openInNew()">新窗口打开</button>
+    </div>
+  </div>
+
+  <!-- 多段拼接 -->
+  <div class="card" id="segmentsCard" style="display:none">
+    <h2><span class="step">4</span>本次会话历史</h2>
+    <div class="seg-list" id="segList"></div>
+    <div class="actions">
+      <button class="ghost" onclick="clearHistory()">清空历史</button>
+    </div>
+  </div>
+</main>
+
+<!-- 设置弹窗 -->
+<dialog id="dlg">
+  <div class="dialog-head">
+    <strong>⚙ 文生视频设置</strong>
+    <button class="x" onclick="closeSettings()">×</button>
+  </div>
+  <div class="dialog-body">
+    <div class="tip">
+      💡 Seedance 是<strong>视频</strong>模型，不是图片模型。本工具只调用它生成视频。<br>
+      若你同时想用图片通道（封面/分镜），请在<a href="https://b4fbaa6cc9574945a01c589b093ed200.app.workbuddy.link" target="_blank" style="color:var(--brand)">知影主站</a>另行配置。
+    </div>
+
+    <label style="margin-top:14px">火山引擎方舟 API Key <span style="color:var(--danger)">*</span></label>
+    <input type="password" id="cfgKey" placeholder="sk-xxx...  在 console.volcengine.com/ark 创建">
+
+    <label style="margin-top:14px">模型 ID</label>
+    <select id="cfgModel">
+      <option value="doubao-seedance-2-5-260628">doubao-seedance-2-5-260628（默认 · 2.5 最新）</option>
+      <option value="doubao-seedance-1-0-pro-250528">doubao-seedance-1-0-pro-250528（平衡版 · 价格更低）</option>
+      <option value="doubao-seedance-1-0-pro-fast-251015">doubao-seedance-1-0-pro-fast-251015（最快最便宜）</option>
+      <option value="doubao-seedance-2-0-pro-250528">doubao-seedance-2-0-pro-250528（2.0 系列）</option>
+    </select>
+    <div class="help">⚠️ 所有模型都需先在 <b>开通管理 → Doubao-Seedance</b> 点开通，仅建 Key 不开通会报错。</div>
+
+    <label style="margin-top:14px">分辨率（-1 默认由模型决定，1080p 仅部分模型支持）</label>
+    <select id="cfgRes">
+      <option value="-1">由模型自动决定（推荐）</option>
+      <option value="480">480p（最便宜）</option>
+      <option value="720">720p（推荐）</option>
+      <option value="1080">1080p（部分模型支持）</option>
+    </select>
+
+    <div class="actions" style="margin-top:18px">
+      <button class="primary" onclick="testConnection()" id="btnTest">🔌 测试连接</button>
+      <button class="primary" onclick="saveSettings()" style="background:linear-gradient(135deg,#5aa87a,#2e7d4f)">💾 保存设置</button>
+    </div>
+
+    <div id="testResult" style="margin-top:14px;display:none"></div>
+
+    <table class="cost-tbl">
+      <thead><tr><th>时长</th><th>720p 预估</th><th>480p 预估</th></tr></thead>
+      <tbody>
+        <tr><td>5 秒</td><td><b>~8.5 元</b></td><td>~3.5 元</td></tr>
+        <tr><td>8 秒</td><td><b>~14 元</b></td><td>~5.6 元</td></tr>
+        <tr><td>10 秒</td><td><b>~17 元</b></td><td>~7 元</td></tr>
+        <tr><td>15 秒</td><td><b>~25 元</b></td><td>~10 元</td></tr>
+      </tbody>
+    </table>
+
+    <div class="tip" style="margin-top:16px">
+      <strong>必读</strong>：Seedance 2.x 需账户<b>余额 ≥ 200 元</b>且<b>无免费试用额度</b>，第一笔就扣费。
+      想试水请用 <b>1.0-pro-fast</b> 版本，单价约为 2.5 的 1/3。
+    </div>
+  </div>
+</dialog>
+
+<footer>
+  Seedance 2.5 视频直出工坊 · 知影 ZhiYing 配套工具 · 数据仅在本机浏览器与火山方舟之间传输
+</footer>
+
+<script>
+// ====== 状态管理 ======
+const $ = id => document.getElementById(id);
+const STORE_KEY = 'zhiying_seedance_cfg_v1';
+let cfg = (()=>{ try{ return JSON.parse(localStorage.getItem(STORE_KEY)||'{}'); }catch{ return {}; } })();
+cfg.model = cfg.model || 'doubao-seedance-2-5-260628';
+cfg.resolution = cfg.resolution || '-1';
+if(!cfg.history) cfg.history = [];
+
+// ====== 当前任务状态 ======
+let currentState = {
+  generating:false,
+  taskId:null,
+  startTime:0,
+  pollTimer:null,
+  url:null,
+  blobUrl:null,
+};
+
+// ====== UI 初始化 ======
+function initUI(){
+  refreshConfigSummary();
+  bindChoices('durationChoices', 'duration', 8);
+  bindChoices('ratioChoices', 'ratio', '16:9');
+  bindChoices('audioChoices', 'audio', 'true');
+  updateEstCost();
+  $('prompt').addEventListener('input', updateEstCost);
+  $('cfgKey').value = cfg.key || '';
+  $('cfgModel').value = cfg.model;
+  $('cfgRes').value = cfg.resolution;
+  renderHistory();
+}
+function bindChoices(divId, stateKey, defaultVal){
+  const choices = $(divId).querySelectorAll('.choice');
+  choices.forEach(c=>{
+    c.addEventListener('click', ()=>{
+      choices.forEach(x=>x.classList.remove('on'));
+      c.classList.add('on');
+      updateEstCost();
+    });
+  });
+}
+function getSelection(divId){
+  const on = $(divId).querySelector('.choice.on');
+  return on ? on.dataset.v : null;
+}
+
+// ====== 配置摘要 ======
+function refreshConfigSummary(){
+  const el = $('cfgSummary');
+  if(!cfg.key){
+    el.innerHTML = '<div class="empty"><div class="icon">🔑</div>尚未配置 API Key，请点右上角「⚙ 设置」填写</div>';
+    return;
+  }
+  const masked = cfg.key.slice(0,7) + '••••••••' + cfg.key.slice(-4);
+  el.innerHTML = `
+    <div style="display:flex;gap:18px;flex-wrap:wrap;align-items:center">
+      <div><span style="color:var(--ink2)">模型：</span><b>${cfg.model}</b></div>
+      <div><span style="color:var(--ink2)">Key：</span><code style="background:#f6faf7;padding:2px 8px;border-radius:6px;font-size:12px">${masked}</code></div>
+      <div><span style="color:var(--ink2)">历史条数：</span><b>${cfg.history.length}</b></div>
+    </div>
+  `;
+}
+
+// ====== 费用估算 ======
+function updateEstCost(){
+  const dur = parseInt(getSelection('durationChoices') || 8);
+  let yuan;
+  if(dur===5) yuan = 8.5;
+  else if(dur===8) yuan = 14;
+  else if(dur===10) yuan = 17;
+  else yuan = Math.round(dur * 1.7);
+  $('estCost').innerHTML = `预估费用：<b>~${yuan} 元</b>（${dur} 秒 720p 约 1.7 元/秒）`;
+}
+
+// ====== 设置面板 ======
+function openSettings(){ $('dlg').showModal(); }
+function closeSettings(){ $('dlg').close(); }
+async function saveSettings(){
+  cfg.key = $('cfgKey').value.trim();
+  cfg.model = $('cfgModel').value;
+  cfg.resolution = $('cfgRes').value;
+  localStorage.setItem(STORE_KEY, JSON.stringify({key:cfg.key, model:cfg.model, resolution:cfg.resolution}));
+  refreshConfigSummary();
+  toast('✅ 设置已保存');
+}
+async function testConnection(){
+  const key = $('cfgKey').value.trim();
+  if(!key){ showTest(false, '请先填写 API Key'); return; }
+  const btn = $('btnTest'); btn.disabled = true; btn.textContent = '⏳ 测试中…';
+  try{
+    // 用一个 5 秒、最低分辨率的最小测试任务
+    const r1 = await fetch('https://ark.cn-beijing.volces.com/api/v3/contents/generations/tasks', {
+      method:'POST',
+      headers:{'Authorization':'Bearer '+key, 'Content-Type':'application/json'},
+      body: JSON.stringify({
+        model: $('cfgModel').value,
+        content:[{type:'text', text:'一个红色小球在白色背景上跳动'}],
+        ratio:'1:1', duration:5, generate_audio:false, watermark:false,
+        resolution: cfg.resolution==='-1' ? undefined : cfg.resolution,
+      })
+    });
+    const j1 = await r1.json();
+    if(!r1.ok || !j1.id){
+      showTest(false, '提交失败：' + translateError(j1));
+      btn.disabled=false; btn.textContent='🔌 测试连接'; return;
+    }
+    // 轮询一次确认能拿到结果
+    const ok = await pollUntilDone(key, j1.id, 30);
+    if(ok.done){
+      showTest(true, `✅ 成功！模型返回了 ${ok.videoUrl ? '视频URL' : '空结果'}，可正常生成。`);
+      // 自动保存
+      $('cfgKey').value = key; saveSettings();
+    } else if(ok.err){
+      showTest(false, '生成失败：' + translateError(ok.err));
+    } else {
+      showTest(false, '连接超时（30 秒内未拿到结果），可能是模型过慢或 Key 权限不足');
+    }
+  }catch(e){
+    showTest(false, '网络错误：' + e.message + '（请检查浏览器是否能访问 ark.cn-beijing.volces.com）');
+  }
+  btn.disabled=false; btn.textContent='🔌 测试连接';
+}
+function showTest(ok, msg){
+  const el = $('testResult');
+  el.style.display = 'block';
+  el.style.padding = '12px 14px';
+  el.style.borderRadius = '8px';
+  el.style.background = ok ? '#eaf6ee' : '#fdecea';
+  el.style.color = ok ? 'var(--ok)' : 'var(--danger)';
+  el.style.border = '1px solid ' + (ok ? '#b6dec5' : '#f5c5be');
+  el.style.fontSize = '13px';
+  el.innerHTML = msg;
+}
+
+// ====== 错误翻译 ======
+function translateError(j){
+  if(!j) return '未知错误';
+  const code = j?.error?.code || j?.code || '';
+  const msg  = j?.error?.message || j?.message || j?.error_msg || JSON.stringify(j).slice(0,200);
+  if(msg.includes('Authentication') || code.includes('Auth') || code==='18') return 'API Key 无效或已过期，请在火山方舟重新创建';
+  if(code==='AccessDenied' || msg.includes('AccessDenied')) return '权限不足：请先到「开通管理」开通 Doubao-Seedance 模型';
+  if(code==='ModelNotOpen' || msg.includes('not been opened')) return '模型未开通：到控制台「开通管理」开通 Seedance';
+  if(msg.includes('QuotaExceeded') || msg.includes('quota')) return '额度不足 / 余额 < 200 元，请充值后重试';
+  if(msg.includes('InvalidParameter') || code==='InvalidParameter') return '参数错误：模型/时长/分辨率组合不支持';
+  if(msg.includes('rate') || msg.includes('RateLimit')) return '请求被限流，请稍候 30 秒重试';
+  return '【' + (code||'unknown') + '】' + msg;
+}
+
+// ====== 轮询 ======
+async function pollUntilDone(key, taskId, maxSec){
+  const start = Date.now();
+  let elapsed = 0;
+  while(elapsed < maxSec*1000){
+    await new Promise(r=>setTimeout(r,1500));
+    try{
+      const r = await fetch('https://ark.cn-beijing.volces.com/api/v3/contents/generations/tasks/'+taskId, {
+        headers:{'Authorization':'Bearer '+key}
+      });
+      const j = await r.json();
+      const status = (j.status||'').toLowerCase();
+      // 进度更新
+      const pct = Math.min(95, Math.floor((Date.now()-start)/maxSec*100));
+      $('progressFill').style.width = pct+'%';
+      $('statusText').textContent = '生成中 · ' + status + '（已用 ' + Math.floor(elapsed/1000) + 's）';
+      if(status==='succeeded'){
+        const url = j?.content?.data?.[0]?.url || j?.content?.video_url || j?.output?.video_url;
+        $('progressFill').style.width = '100%';
+        return {done:true, videoUrl:url, raw:j};
+      }
+      if(status==='failed'){
+        return {done:false, err:j};
+      }
+    }catch(e){
+      // 网络波动，继续
+    }
+    elapsed = Date.now() - start;
+  }
+  return {done:false};
+}
+
+// ====== 主要生成流程 ======
+async function doGenerate(){
+  if(currentState.generating){
+    toast('⚠️ 当前正在生成中，请先等待完成');
+    return;
+  }
+  if(!cfg.key){
+    openSettings();
+    toast('⚠️ 请先在设置中填写 API Key');
+    return;
+  }
+  const prompt = $('prompt').value.trim();
+  if(!prompt){
+    toast('⚠️ 请填写提示词');
+    return;
+  }
+  const duration = parseInt(getSelection('durationChoices'));
+  const ratio    = getSelection('ratioChoices');
+  const audio    = getSelection('audioChoices') === 'true';
+  const model    = cfg.model;
+
+  // UI
+  currentState.generating = true;
+  currentState.startTime = Date.now();
+  const btn = $('btnGenerate');
+  btn.disabled = true;
+  $('btnGenText').textContent = '⏳ 生成中…请勿关闭';
+
+  $('outputCard').style.display='none';
+  $('progress').style.display='block';
+  $('status').style.display='flex';
+  $('progressFill').style.width='5%';
+  $('statusText').textContent='提交任务到火山方舟…';
+  $('statusDot').classList.remove('ok','err');
+
+  // 启动计时器
+  if(currentState.pollTimer) clearInterval(currentState.pollTimer);
+  currentState.pollTimer = setInterval(()=>{
+    const sec = Math.floor((Date.now()-currentState.startTime)/1000);
+    const m = Math.floor(sec/60), s = sec%60;
+    $('statusTime').textContent = m+':'+(s<10?'0':'')+s;
+  }, 200);
+
+  try{
+    // 提交
+    const body = {
+      model,
+      content:[{type:'text', text:prompt}],
+      ratio, duration, generate_audio: audio, watermark:false,
+    };
+    if(cfg.resolution !== '-1') body.resolution = cfg.resolution;
+    const r1 = await fetch('https://ark.cn-beijing.volces.com/api/v3/contents/generations/tasks', {
+      method:'POST',
+      headers:{'Authorization':'Bearer '+cfg.key, 'Content-Type':'application/json'},
+      body: JSON.stringify(body),
+    });
+    const j1 = await r1.json();
+    if(!r1.ok || !j1.id){
+      throw new Error(translateError(j1));
+    }
+    const taskId = j1.id;
+    $('statusText').textContent = '✅ 任务已提交（ID ' + taskId.slice(0,12) + '…），等待生成…';
+
+    // 轮询直到完成（最多 240 秒=4 分钟）
+    const ok = await pollUntilDone(cfg.key, taskId, 240);
+    if(!ok.done){
+      throw new Error(translateError(ok.err) || '生成超时（4 分钟内未返回结果）');
+    }
+    const videoUrl = ok.videoUrl;
+    if(!videoUrl) throw new Error('生成成功但未返回视频 URL');
+
+    // 拉取并转 Blob URL（方便下载）
+    const vr = await fetch(videoUrl);
+    if(!vr.ok) throw new Error('视频 URL 下载失败 HTTP '+vr.status);
+    const blob = await vr.blob();
+    const blobUrl = URL.createObjectURL(blob);
+
+    // 写入播放器
+    const videoEl = $('outVideo');
+    videoEl.src = blobUrl;
+    $('outputCard').style.display='block';
+    $('metaRatio').textContent = ratio;
+    $('metaDur').textContent = duration;
+    const yuan = duration<=5?8.5:duration<=8?14:duration<=10?17:Math.round(duration*1.7);
+    $('metaCost').textContent = yuan;
+    $('metaTime').textContent = Math.floor((Date.now()-currentState.startTime)/1000);
+
+    $('statusDot').classList.add('ok');
+    $('statusText').textContent = '✅ 生成完成！';
+    clearInterval(currentState.pollTimer);
+
+    // 保存到历史
+    const item = {
+      id: taskId,
+      prompt, duration, ratio, audio, model,
+      blobUrl, videoUrl,
+      createdAt: Date.now(),
+      cost: yuan,
+      time: Math.floor((Date.now()-currentState.startTime)/1000),
+    };
+    cfg.history.unshift(item);
+    if(cfg.history.length > 20) cfg.history.pop();
+    localStorage.setItem(STORE_KEY, JSON.stringify({key:cfg.key, model:cfg.model, resolution:cfg.resolution, history:cfg.history}));
+    refreshConfigSummary();
+    renderHistory();
+
+    toast('🎉 生成完成！已自动保存到历史');
+  }catch(e){
+    $('statusDot').classList.add('err');
+    $('statusText').textContent = '❌ ' + e.message;
+    $('progressFill').style.background = 'var(--danger)';
+    if(currentState.pollTimer) clearInterval(currentState.pollTimer);
+    toast('❌ ' + e.message);
+  }finally{
+    currentState.generating = false;
+    btn.disabled = false;
+    $('btnGenText').textContent = '🎬 立即生成视频';
+  }
+}
+
+// ====== 历史渲染 ======
+function renderHistory(){
+  const list = $('segList');
+  if(!cfg.history.length){
+    $('segmentsCard').style.display='none';
+    list.innerHTML='';
+    return;
+  }
+  $('segmentsCard').style.display='block';
+  list.innerHTML = cfg.history.map((h,i)=>`
+    <div class="seg">
+      <video src="${h.blobUrl}" muted loop onmouseover="this.play()" onmouseout="this.pause()"></video>
+      <div class="info">
+        <div class="ph" title="${esc(h.prompt)}">${esc(h.prompt)}</div>
+        <div>
+          <span class="badge2 ok">${esc(h.ratio)}</span>
+          <span class="badge2 ok">${h.duration}s</span>
+          <span class="badge2 ok">¥${h.cost}</span>
+          <span class="badge2 ok">${h.time}s</span>
+        </div>
+      </div>
+      <button class="ghost" onclick="downloadHistory(${i})">下载</button>
+      <button class="ghost" onclick="deleteHistory(${i})">删除</button>
+    </div>
+  `).join('');
+}
+function esc(s){ return (s||'').replace(/[<>&"']/g, c=>({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;',"'":'&#39;'}[c])); }
+function downloadHistory(i){
+  const a = document.createElement('a');
+  a.href = cfg.history[i].blobUrl;
+  a.download = `seedance_${cfg.history[i].createdAt}.mp4`;
+  a.click();
+}
+function deleteHistory(i){
+  if(!confirm('从历史中删除（不影响已下载的文件）？')) return;
+  URL.revokeObjectURL(cfg.history[i].blobUrl);
+  cfg.history.splice(i,1);
+  localStorage.setItem(STORE_KEY, JSON.stringify({key:cfg.key, model:cfg.model, resolution:cfg.resolution, history:cfg.history}));
+  refreshConfigSummary();
+  renderHistory();
+}
+function clearHistory(){
+  if(!confirm('清空全部 ' + cfg.history.length + ' 条历史？')) return;
+  cfg.history.forEach(h=>URL.revokeObjectURL(h.blobUrl));
+  cfg.history = [];
+  localStorage.setItem(STORE_KEY, JSON.stringify({key:cfg.key, model:cfg.model, resolution:cfg.resolution, history:cfg.history}));
+  refreshConfigSummary();
+  renderHistory();
+}
+
+// ====== 操作当前视频 ======
+function downloadCurrent(){
+  const v = $('outVideo');
+  if(!v.src){ toast('暂无视频'); return; }
+  const a = document.createElement('a');
+  a.href = v.src;
+  a.download = `seedance_${Date.now()}.mp4`;
+  a.click();
+}
+function copyVideoUrl(){
+  const v = $('outVideo');
+  if(!v.src){ toast('暂无视频'); return; }
+  navigator.clipboard.writeText(v.src).then(()=>toast('已复制 blob: 链接（仅在本浏览器有效）'));
+}
+function openInNew(){
+  const v = $('outVideo');
+  if(!v.src){ toast('暂无视频'); return; }
+  window.open(v.src, '_blank');
+}
+
+// ====== 杂项 ======
+function resetForm(){ $('prompt').value=''; }
+function toast(msg){
+  const t = document.createElement('div');
+  t.className='toast'; t.textContent=msg;
+  document.body.appendChild(t);
+  setTimeout(()=>{ t.style.opacity='0'; t.style.transition='.3s'; setTimeout(()=>t.remove(),300); }, 2400);
+}
+
+// ====== 启动 ======
+window.addEventListener('DOMContentLoaded', initUI);
+</script>
+</body>
+</html>

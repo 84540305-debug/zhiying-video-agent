@@ -155,8 +155,12 @@
   }
   .preview-wrap:fullscreen{border-radius:0;border:none}
   .stage{position:absolute;inset:0}
-  #imgLayer{width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity .5s}
-  #imgLayer.show{opacity:1}
+  #imgLayer{position:relative;width:100%;height:100%;overflow:hidden;background:#000}
+  #imgLayer > .fill{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity .5s}
+  #imgLayer.show > .fill{opacity:1}
+  #imgLayer > .vid-loading{position:absolute;inset:0;display:grid;place-items:center;color:#a3c3b0;font-size:13px;background:linear-gradient(135deg,#0d2818,#1a4a2e);z-index:2}
+  #imgLayer > .vid-loading .spinner{width:34px;height:34px;border:3px solid rgba(255,255,255,.18);border-top-color:#5aa87a;border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 10px}
+  @keyframes spin{to{transform:rotate(360deg)}}
   .kb-zin{animation:kbZin 8s ease-out forwards}
   .kb-zout{animation:kbZout 8s ease-out forwards}
   .kb-pl{animation:kbPl 8s ease-out forwards}
@@ -615,7 +619,7 @@
     </div>
 
     <div class="preview-wrap cc-on" id="previewWrap">
-      <img class="stage" id="imgLayer" alt=""/>
+      <div class="stage" id="imgLayer"></div>
       <div class="stage" id="htmlStage"></div>
       <div class="slide-canvas" id="slideCanvas">
         <div class="slide" id="slideEl"></div>
@@ -677,7 +681,7 @@
       <span style="font-size:20px">⚙️</span>
       <div>
         <h3>文生图模型设置</h3>
-        <div class="mh-sub">选择文生图 API 模型，填入对应密钥即可切换（密钥仅存本地 localStorage）</div>
+        <div class="mh-sub">选择 AI 出图/出视频模型，填入对应密钥即可切换（密钥仅存本地 localStorage）</div>
       </div>
       <button class="modal-close" onclick="closeImgConfig()">✕</button>
     </div>
@@ -685,7 +689,8 @@
       <label class="cfg-label">选择模型</label>
       <select class="cfg-select" id="cfgModel" onchange="onCfgModelChange()">
         <option value="pollinations">Pollinations.ai（默认 · 免费免key · 推荐）</option>
-        <option value="doubao">豆包 / 火山引擎方舟 · Seedream（推荐 · 浏览器直连免代理）</option>
+        <option value="doubao">豆包 / 火山引擎方舟 · Seedream（图片 · 浏览器直连免代理）</option>
+        <option value="seedance25">🆕 豆包 Seedance 2.5 · 视频直出（4~30s 动态镜头 · 走方舟异步接口）</option>
         <option value="wanx">通义万相 / 阿里 DashScope（需 API Key + 异步轮询）</option>
         <option value="stability">Stability AI / Stable Diffusion（需 API Key · 支持CORS）</option>
         <option value="dalle">OpenAI DALL·E 3（需 API Key · 需特殊网络环境）</option>
@@ -711,6 +716,51 @@
         <button onclick="testDoubaoConn()" style="margin-top:6px;padding:9px 14px;border-radius:8px;border:1px solid #2e7d4f;background:#eaf5ee;color:#1b5e3a;font-size:13px;cursor:pointer;width:100%">🔌 测试连接（会真实生成 1 张图）</button>
         <div id="cfgDoubaoTest" style="margin-top:8px;font-size:12.5px;line-height:1.6;word-break:break-all"></div>
         <p class="cfg-tip">✅ <b>无需部署代理</b>：方舟接口已返回 CORS 头，浏览器可直调。<br>密钥仅存本机 localStorage，不会上传到任何服务器。<br>获取密钥：https://console.volcengine.com/ark → API Key 管理；<br>还需在「开通管理」中开通对应 Seedream 模型。</p>
+      </div>
+
+      <div id="cfgSeedance25" class="cfg-section hidden">
+        <p class="cfg-tip" style="border-left:3px solid #5aa87a;padding:8px 12px;background:#f5fbf7;margin:0 0 10px">🎬 <b>Seedance 2.5 视频直出</b>：每个分镜调用方舟异步任务生成真实动态视频（4~30s，480p/720p）。<br>💰 <b>10 秒 720p ≈ 17 元</b>，无免费试用；想省钱可换 <code>doubao-seedance-1-0-pro-fast-251015</code>。<br>⏱ 每段需 30 秒~3 分钟；用户首次播放该分镜时按需生成，结果缓存到项目。</p>
+        <label class="cfg-label">火山引擎方舟 API Key <span class="cfg-required">*</span>（与 Seedream 共用同一个 Key）</label>
+        <input class="cfg-input" id="cfgSeedance25Key" type="password" placeholder="留空则自动复用 Seedream 的 Key">
+        <label class="cfg-label">视频模型</label>
+        <input class="cfg-input" id="cfgSeedance25Model" type="text" list="seedance25ModelList" placeholder="doubao-seedance-2-5-260628">
+        <datalist id="seedance25ModelList">
+          <option value="doubao-seedance-2-5-260628">Seedance 2.5 · 最新（需余额 > 200 元）</option>
+          <option value="doubao-seedance-2-0-260128">Seedance 2.0 · 性价比</option>
+          <option value="doubao-seedance-2-0-fast-260128">Seedance 2.0 fast · 最快</option>
+          <option value="doubao-seedance-1-0-pro-250528">Seedance 1.0 pro · 老版本稳定</option>
+          <option value="doubao-seedance-1-0-pro-fast-251015">Seedance 1.0 fast · 💰最便宜</option>
+        </datalist>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:6px">
+          <div>
+            <label class="cfg-label">时长（秒）</label>
+            <select class="cfg-select" id="cfgSeedance25Dur">
+              <option value="5">5</option>
+              <option value="8">8</option>
+              <option value="10" selected>10</option>
+              <option value="15">15</option>
+              <option value="30">30</option>
+            </select>
+          </div>
+          <div>
+            <label class="cfg-label">宽高比</label>
+            <select class="cfg-select" id="cfgSeedance25Ratio">
+              <option value="16:9" selected>16:9 横屏</option>
+              <option value="9:16">9:16 竖屏</option>
+              <option value="1:1">1:1 方形</option>
+            </select>
+          </div>
+          <div>
+            <label class="cfg-label">分辨率</label>
+            <select class="cfg-select" id="cfgSeedance25Res">
+              <option value="480p">480p</option>
+              <option value="720p" selected>720p</option>
+            </select>
+          </div>
+        </div>
+        <button onclick="testSeedance25Conn()" style="margin-top:12px;padding:9px 14px;border-radius:8px;border:1px solid #2e7d4f;background:#eaf5ee;color:#1b5e3a;font-size:13px;cursor:pointer;width:100%">🎬 测试连接（会真实生成 1 段 5 秒视频，按生成计费）</button>
+        <div id="cfgSeedance25Test" style="margin-top:8px;font-size:12.5px;line-height:1.6;word-break:break-all"></div>
+        <p class="cfg-tip">⚠️ <b>无免费试用</b>：首笔即扣费。建议先用「测试连接」验证 Key 与模型可用。<br>💵 费用公式：720p ≈ 1.7 元/秒，480p ≈ 0.7 元/秒（实际以控制台计费规则为准）。<br>🔁 每个分镜生成一次后缓存在项目，<b>刷新网页不丢</b>。<br>🔒 Key 仅存本机 localStorage。</p>
       </div>
 
       <div id="cfgWanx" class="cfg-section hidden">
@@ -971,6 +1021,123 @@ async function _callDoubaoVideo(prompt, opts){
   throw new Error('豆包视频任务超时');
 }
 
+// ②b 豆包 Seedance 2.5 视频直出 · 面向「设置面板」的统一入口
+//      复用 _callDoubaoVideo，仅做参数适配与错误包装
+async function _callSeedance25(prompt, opts){
+  const key = IMG_CONFIG.keys.seedance25_key || IMG_CONFIG.keys.doubao;
+  if(!key) throw new Error('未配置火山引擎 API Key（请在 ⚙️ 设置里填入 Key，或到 Seedream 板块填同一个 Key）');
+  const model = opts.model || IMG_CONFIG.keys.seedance25_model || 'doubao-seedance-2-5-260628';
+  const ratio = opts.ratio || IMG_CONFIG.keys.seedance25_ratio || '16:9';
+  const duration = opts.duration || IMG_CONFIG.keys.seedance25_duration || 10;
+  const resolution = opts.resolution || IMG_CONFIG.keys.seedance25_resolution || '720p';
+  try{
+    const url = await _callDoubaoVideo(prompt, {
+      model, ratio, duration,
+      generateAudio: opts.generateAudio!==undefined ? opts.generateAudio : false
+    });
+    return { type:'video', url, model, ratio, duration, resolution };
+  }catch(e){
+    throw new Error(_seedanceErr(e.message || String(e)));
+  }
+}
+// 错误翻译
+function _seedanceErr(msg){
+  const m = String(msg);
+  if(/AuthenticationError|InvalidAPIKey|401/i.test(m))  return '鉴权失败：API Key 无效或已过期，请回控制台重新复制';
+  if(/AccessDenied|403|ModelNotOpen/i.test(m))          return '权限拒绝：账户可能没开通 Seedance 或余额不足 200 元门槛';
+  if(/ModelNotFound|404/i.test(m))                       return '模型不存在：请检查「视频模型」下拉是否选了正确版本';
+  if(/QuotaExceeded|InsufficientBalance/i.test(m))       return '额度/余额不足，请到方舟控制台充值';
+  if(/RateLimit|429/i.test(m))                           return '触发限流，请稍后重试';
+  if(/InvalidParameter/i.test(m))                        return '参数错误：时长/宽高比/分辨率组合不支持';
+  if(/超时|timeout/i.test(m))                            return '任务超时（视频排队较久），建议稍后再试';
+  return m;
+}
+
+// 测试连接按钮（设置面板用）
+async function testSeedance25Conn(){
+  const out = $('#cfgSeedance25Test');
+  out.innerHTML = '⏳ 正在提交测试任务（最长 3 分钟）……';
+  try{
+    const key = ($('#cfgSeedance25Key').value.trim()) || IMG_CONFIG.keys.doubao;
+    if(!key){ out.innerHTML = '<span style="color:#c0392b">❌ 请先填写 API Key</span>'; return; }
+    // 临时保存当前 key 到 IMG_CONFIG 便于函数读取
+    IMG_CONFIG.keys.seedance25_key = key;
+    const t0 = Date.now();
+    const r = await _callSeedance25('A Chinese soldier standing guard on a misty mountain ridge at dawn, cinematic motion, golden sunlight, slow push-in camera, 4K cinematic', {
+      model: IMG_CONFIG.keys.seedance25_model || 'doubao-seedance-2-5-260628',
+      ratio: IMG_CONFIG.keys.seedance25_ratio || '16:9',
+      duration: 5,
+      resolution: '480p' // 测试连接用最便宜配置
+    });
+    const sec = ((Date.now()-t0)/1000).toFixed(1);
+    out.innerHTML = `<span style="color:#1b5e3a">✅ 连接成功！用时 ${sec}s</span><br><video src="${r.url}" controls autoplay loop muted playsinline style="width:100%;max-height:200px;margin-top:6px;border-radius:6px"></video><br><span style="color:#5a7867;font-size:11px">本次按 5s · 480p 计费（约 3.5 元），模型 ${r.model}</span>`;
+  }catch(e){
+    out.innerHTML = '<span style="color:#c0392b">❌ '+(e.message||e)+'</span>';
+  }
+}
+
+// 视频模型配置参数
+function _seedanceCfg(){
+  return {
+    key:       IMG_CONFIG.keys.seedance25_key || IMG_CONFIG.keys.doubao,
+    model:     IMG_CONFIG.keys.seedance25_model || 'doubao-seedance-2-5-260628',
+    duration:  IMG_CONFIG.keys.seedance25_duration || 10,
+    ratio:     IMG_CONFIG.keys.seedance25_ratio || '16:9',
+    resolution:IMG_CONFIG.keys.seedance25_resolution || '720p'
+  };
+}
+// 为某个分镜异步生成 Seedance 视频（首次播放时触发）
+async function _triggerSceneVideo(scene, project){
+  const cfg = _seedanceCfg();
+  if(!cfg.key){ toast('请先在 ⚙️ 设置里配置火山引擎 API Key'); return; }
+  if(scene._videoLoading) return;
+  scene._videoLoading = true;
+  scene._videoStatus = '排队中 / 生成中（约 30s~3min）';
+  // 立刻刷新一次分镜列表让用户看到状态
+  if(state.project===project) renderStoryboard();
+  const basePrompt = scenePromptFor(scene, project) || scene.title || scene.narration || 'cinematic motion';
+  const prompt = basePrompt + ', cinematic motion, smooth camera movement, high quality, 24fps';
+  try{
+    const r = await _callSeedance25(prompt, cfg);
+    scene.videoUrl = r.url;
+    scene.videoMeta = {model:r.model, duration:r.duration, ratio:r.ratio, resolution:r.resolution};
+    scene._videoLoading = false;
+    scene._videoStatus = null;
+    persist();
+    // 如果用户还在看这一镜，立刻刷新画面
+    if(state.project===project && state.current===project.scenes.indexOf(scene)){
+      _renderMediaToLayer(scene, project);
+    }
+    renderStoryboard();
+    toast('分镜 ' + (project.scenes.indexOf(scene)+1) + ' 视频生成完成');
+  }catch(e){
+    scene._videoLoading = false;
+    scene._videoStatus = '失败：'+_seedanceErr(e.message||String(e));
+    if(state.project===project) renderStoryboard();
+    toast('视频生成失败：' + _seedanceErr(e.message||String(e)));
+  }
+}
+
+// 把 scene 的媒体（img 或 video）渲染到中间预览图层
+function _renderMediaToLayer(scene, project){
+  const imgL = $('#imgLayer');
+  if(!imgL) return;
+  imgL.classList.remove('show','kb-zin','kb-zout','kb-pl','kb-pr');
+  if(scene.videoUrl){
+    imgL.innerHTML = `<video class="fill" src="${scene.videoUrl}" autoplay loop muted playsinline></video>`;
+  }else{
+    imgL.innerHTML = `<img class="fill" src="${imgFor(scene)}" alt="">`;
+  }
+  // 双 rAF 后加 show 触发动效
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{
+    imgL.classList.add('show');
+    // Ken Burns 动效只对图片生效
+    if(!scene.videoUrl){
+      imgL.querySelector('img').classList.add('kb-'+(['zin','zout','pl','pr'][Math.abs(hashStr(scene.title||''))%4]));
+    }
+  }));
+}
+
 // ③ 通义万相/阿里DashScope（需 DASHSCOPE_API_KEY，异步轮询，需后端代理）
 async function _callWanx(prompt, w, h){
   const key = IMG_CONFIG.keys.wanx;
@@ -1053,6 +1220,7 @@ async function genImageViaAPI(prompt, w, h, timeout=18000){
 const IMG_MODELS = {
   pollinations:{label:'Pollinations.ai', tip:'免费免key·国内不通'},
   doubao:      {label:'豆包/火山引擎', tip:'Seedream·浏览器直连免代理'},
+  seedance25:  {label:'豆包 Seedance 2.5 · 视频直出', tip:'🚀 4~30s 动态视频·按需生成·按秒计费'},
   wanx:        {label:'通义万相',        tip:'需Key·异步轮询'},
   stability:   {label:'Stability AI',   tip:'需Key·需特殊网络'},
   dalle:       {label:'DALL·E 3',        tip:'需Key·需特殊网络'},
@@ -1063,6 +1231,11 @@ function openImgConfig(){
   $('#cfgDoubaoKey').value    = IMG_CONFIG.keys.doubao || '';
   $('#cfgDoubaoModel').value  = IMG_CONFIG.keys.doubao_model || 'doubao-seedream-4-0-250828';
   $('#cfgDoubaoProxy').value  = IMG_CONFIG.keys.doubao_proxy || '';
+  $('#cfgSeedance25Key').value    = IMG_CONFIG.keys.seedance25_key || '';
+  $('#cfgSeedance25Model').value  = IMG_CONFIG.keys.seedance25_model || 'doubao-seedance-2-5-260628';
+  $('#cfgSeedance25Dur').value    = String(IMG_CONFIG.keys.seedance25_duration || 10);
+  $('#cfgSeedance25Ratio').value  = IMG_CONFIG.keys.seedance25_ratio || '16:9';
+  $('#cfgSeedance25Res').value    = IMG_CONFIG.keys.seedance25_resolution || '720p';
   $('#cfgWanxKey').value      = IMG_CONFIG.keys.wanx || '';
   $('#cfgWanxProxy').value    = IMG_CONFIG.keys.wanx_proxy || '';
   $('#cfgStabilityKey').value = IMG_CONFIG.keys.stability || '';
@@ -1070,6 +1243,8 @@ function openImgConfig(){
   $('#cfgOpenaiProxy').value  = IMG_CONFIG.keys.openai_proxy || '';
   const tr = document.getElementById('cfgDoubaoTest');
   if(tr) tr.innerHTML = '';
+  const tr2 = document.getElementById('cfgSeedance25Test');
+  if(tr2) tr2.innerHTML = '';
   onCfgModelChange();
   $('#imgCfgMask').classList.add('show');
 }
@@ -1102,7 +1277,7 @@ async function testDoubaoConn(){
 function closeImgConfig(){ $('#imgCfgMask').classList.remove('show'); }
 function onCfgModelChange(){
   const m = $('#cfgModel').value;
-  ['cfgPollinations','cfgDoubao','cfgWanx','cfgStability','cfgDalle'].forEach(id=>{
+  ['cfgPollinations','cfgDoubao','cfgSeedance25','cfgWanx','cfgStability','cfgDalle'].forEach(id=>{
     const el = document.getElementById(id);
     if(el) el.classList.toggle('hidden', !id.toLowerCase().includes(m));
   });
@@ -1115,6 +1290,13 @@ function saveImgConfigUI(){
   IMG_CONFIG.keys.doubao         = $('#cfgDoubaoKey').value.trim();
   IMG_CONFIG.keys.doubao_model   = $('#cfgDoubaoModel').value.trim();
   IMG_CONFIG.keys.doubao_proxy   = $('#cfgDoubaoProxy').value.trim();
+  // Seedance 2.5：Key 留空时自动复用 doubao 的
+  const sk = $('#cfgSeedance25Key').value.trim();
+  IMG_CONFIG.keys.seedance25_key         = sk || IMG_CONFIG.keys.doubao;
+  IMG_CONFIG.keys.seedance25_model       = $('#cfgSeedance25Model').value.trim();
+  IMG_CONFIG.keys.seedance25_duration    = parseInt($('#cfgSeedance25Dur').value, 10) || 10;
+  IMG_CONFIG.keys.seedance25_ratio       = $('#cfgSeedance25Ratio').value;
+  IMG_CONFIG.keys.seedance25_resolution  = $('#cfgSeedance25Res').value;
   IMG_CONFIG.keys.wanx           = $('#cfgWanxKey').value.trim();
   IMG_CONFIG.keys.wanx_proxy     = $('#cfgWanxProxy').value.trim();
   IMG_CONFIG.keys.stability      = $('#cfgStabilityKey').value.trim();
@@ -1124,7 +1306,7 @@ function saveImgConfigUI(){
   closeImgConfig();
   refreshModelLabel();
   const m = IMG_MODELS[IMG_CONFIG.model];
-  toast('已切换文生图模型：' + (m?.label || IMG_CONFIG.model) + '（' + (m?.tip || '') + '）');
+  toast('已切换模型：' + (m?.label || IMG_CONFIG.model) + '（' + (m?.tip || '') + '）');
 }
 /* 工具栏「文生图模型」按钮上显示当前模型，一眼看清正在用哪条通道 */
 function refreshModelLabel(){
@@ -1288,6 +1470,8 @@ function scenePromptFor(s, project){
 /* 给指定 img 元素异步替换为真实文生图（缩略图小、大画面中等分辨率，并发控制） */
 function refreshImgWithAPI(scene, imgEl, w, h, project){
   if(!imgEl || scene._apiLoaded) return;
+  // 视频模型不需要图片替换
+  if(IMG_CONFIG.model==='seedance25') return;
   const prompt = scenePromptFor(scene, project);
   // 降低分辨率提升速度：缩略图 192×108（4倍速），大画面 960×540（2倍速）
   const apiW = w>=800 ? 960 : 192;
@@ -1664,21 +1848,29 @@ function playScene(i, chain){
   $('#sceneInd').style.display='block';
   $('#sceneInd').textContent = `分镜 ${i+1} / ${p.scenes.length} · ${p.scenes[i].title}`;
   const s = p.scenes[i];
-  const imgL=$('#imgLayer'), htmlS=$('#htmlStage');
   if(p.mode==='image'){
-    htmlS.style.display='none'; htmlS.innerHTML='';
-    imgL.style.display='block';
-    imgL.classList.remove('show','kb-zin','kb-zout','kb-pl','kb-pr');
-    imgL.src = imgFor(s); // 程序化占位（立即可见）
-    imgL.onload = ()=>{
-      imgL.classList.add('show','kb-'+(['zin','zout','pl','pr'][i%4]));
-      // 占位显示后，异步加载真实文生图替换
-      refreshImgWithAPI(s, imgL, 1280, 720, p);
-    };
+    $('#htmlStage').style.display='none'; $('#htmlStage').innerHTML='';
+    // 渲染媒体（图 or 视频）
+    if(s.videoUrl){
+      _renderMediaToLayer(s, p);
+    }else if(IMG_CONFIG.model==='seedance25' && !s._videoLoading){
+      // 先用程序化占位图渲染，触发异步视频生成
+      _renderMediaToLayer(s, p);
+      _triggerSceneVideo(s, p);
+    }else{
+      _renderMediaToLayer(s, p);
+      // 占位显示后，异步加载真实文生图替换（仅图片模型）
+      if(IMG_CONFIG.model!=='seedance25'){
+        const imgL = $('#imgLayer');
+        const placeholderImg = imgL.querySelector('img');
+        refreshImgWithAPI(s, placeholderImg, 1280, 720, p);
+      }
+    }
   }else{
-    imgL.style.display='none'; imgL.classList.remove('show');
-    htmlS.style.display='block';
-    htmlS.innerHTML = buildHtmlScene(s, i);
+    $('#imgLayer').style.display='none'; $('#imgLayer').classList.remove('show');
+    $('#imgLayer').innerHTML='';
+    $('#htmlStage').style.display='block';
+    $('#htmlStage').innerHTML = buildHtmlScene(s, i);
     if(HTPL[s.tpl%HTPL.length].id==='type'){
       const el=$('#typeTarget'); const txt=s.narration; let k=0;
       typingTimer=setInterval(()=>{
@@ -1828,10 +2020,18 @@ function renderStoryboard(){
     const card=document.createElement('div');
     card.className='scene-card';
     if(p.mode==='image'){
-      const img=document.createElement('img'); img.src=thumbFor(s); img.alt=s.title;
-      card.appendChild(img);
-      // 缩略图异步替换为真实文生图
-      refreshImgWithAPI(s, img, 320, 180, p);
+      // 视频场景：直接显示视频缩略图；否则显示图片缩略图
+      if(s.videoUrl){
+        const vd=document.createElement('video');
+        vd.src=s.videoUrl; vd.muted=true; vd.loop=true; vd.playsInline=true;
+        vd.style.cssText='width:100%;height:100%;object-fit:cover;display:block';
+        card.appendChild(vd);
+      }else{
+        const img=document.createElement('img'); img.src=thumbFor(s); img.alt=s.title;
+        card.appendChild(img);
+        // 缩略图异步替换为真实文生图（视频模型跳过）
+        if(IMG_CONFIG.model!=='seedance25') refreshImgWithAPI(s, img, 320, 180, p);
+      }
     }else{
       const pal=palOf(s.pal), tpl=HTPL[s.tpl%HTPL.length];
       const th=document.createElement('div');
@@ -1840,9 +2040,25 @@ function renderStoryboard(){
       th.innerHTML=`<span class="ti">${tpl.icon}</span>`;
       card.appendChild(th);
     }
+    // 视频状态徽章（生成中 / 失败 / 已就绪）
+    if(s._videoStatus || s.videoUrl){
+      card.style.position='relative';
+      const badge=document.createElement('div');
+      if(s._videoLoading){
+        badge.style.cssText='position:absolute;left:6px;top:6px;background:rgba(0,0,0,.78);color:#ffd97a;font-size:10px;padding:3px 7px;border-radius:6px;max-width:90%;line-height:1.3;z-index:3';
+        badge.textContent = '🎬 生成中…';
+      }else if(s._videoStatus){
+        badge.style.cssText='position:absolute;left:6px;top:6px;background:rgba(192,57,43,.92);color:#fff;font-size:10px;padding:3px 7px;border-radius:6px;max-width:90%;line-height:1.3;z-index:3';
+        badge.textContent = '❌ ' + (s._videoStatus.length>22 ? s._videoStatus.slice(0,22)+'…' : s._videoStatus);
+      }else{
+        badge.style.cssText='position:absolute;left:6px;top:6px;background:rgba(46,125,79,.92);color:#fff;font-size:10px;padding:3px 7px;border-radius:6px;z-index:3';
+        badge.textContent = '🎬 视频';
+      }
+      card.appendChild(badge);
+    }
     const meta=document.createElement('div');
     meta.className='sc-meta';
-    meta.innerHTML=`<span class="sc-num">${i+1}</span><span class="sc-title">${esc(s.title)}</span><span class="sc-dur">${s.duration}s</span>`;
+    meta.innerHTML=`<span class="sc-num">${i+1}</span><span class="sc-title">${esc(s.title)}</span><span class="sc-dur">${s.videoUrl?'▶':''}${s.duration}s</span>`;
     card.appendChild(meta);
     card.title=`旁白：${s.narration}`;
     card.onclick=()=>playScene(i,false);
