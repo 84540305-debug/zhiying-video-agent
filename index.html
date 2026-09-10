@@ -1561,17 +1561,34 @@ function coverFallbackHTML(p){
 }
 function coverPromptFor(p){
   if(p.coverPrompt) return p.coverPrompt;
-  // 根据项目内容推断 prompt
+  // 军事主题命中 → 用专业封面视觉描述
+  const mil = matchMilitaryTopic(p.topic || p.title || p.prompt || '');
+  if(mil && MILITARY_COVER_HINT[mil.id]){
+    return MILITARY_COVER_HINT[mil.id] + ', cinematic, dramatic lighting, professional photography, 16:9';
+  }
+  // 非军事主题：默认也用军事风格封面（本站为军事理论课平台）
   const topic = p.topic || p.title || '';
   const firstScene = (p.scenes||[])[0];
-  let hint = firstScene? (firstScene.narration || firstScene.title || '').slice(0, 60) : '';
+  let hint = firstScene? (firstScene.narration || firstScene.title || '').slice(0, 40) : '';
   if(!hint && p.mode==='ppt'){
     const firstPage = (p.pages||[])[0];
-    if(firstPage) hint = (firstPage.subtitle || firstPage.title || '').slice(0, 60);
+    if(firstPage) hint = (firstPage.subtitle || firstPage.title || '').slice(0, 40);
   }
-  const base = (topic + ' ' + hint).trim() || 'video cover';
-  return enhancePrompt(base);
+  const base = (topic + ' ' + hint).trim();
+  // 军事通用兜底：所有封面都带军事/军队元素
+  return 'military themed, ' + enhancePrompt(base) + ', soldiers, national defense, cinematic, dramatic lighting, professional photography, 16:9';
 }
+/* 军事理论课 8 大主题的封面视觉描述（直接给文生图 API 用） */
+const MILITARY_COVER_HINT = {
+  defense:  'Chinese military parade, soldiers marching in formation with national flag, Tiananmen square, golden sunrise, patriotic, ceremonial',
+  thought:  'ancient Chinese military strategist, Sun Tzu Art of War, bamboo scrolls, traditional ink painting style, mountain temple, classical',
+  infowar:  'futuristic military command center, holographic battle displays, cyber warfare screens, soldiers in dark control room, blue neon',
+  hitech:   'stealth fighter jet flying, military drone, advanced weaponry, missile launch, dramatic sky, high tech military hardware',
+  strategy: 'world map with strategic military markers, geopolitical, globe with defense bases, dark room with map projection',
+  mobilize: 'citizens in military training, national mobilization exercise, patriotic gathering, uniforms, outdoor training ground',
+  airdef:   'civil defense shelter, air raid siren tower, underground bunker entrance, safety equipment, warning lights',
+  forces:   'PLA soldiers in modern uniform, military branches showcase, army navy air force, national flag, formation',
+};
 function deleteProject(id){
   state.projects = state.projects.filter(p=>p.id!==id);
   if(state.project && state.project.id===id){ state.project=null; resetStage(); }
