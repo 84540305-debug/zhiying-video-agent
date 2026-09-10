@@ -78,16 +78,40 @@
 
 ## 七、真实 AI API 接入点（工程化升级路线）
 
+> ✅ **已接入**：文生图 API 使用 **Pollinations.ai**（免费、无需 key、自动出图）；历史项目封面与封面图按需调用，失败回退到 Canvas 程序化生成（详见下方"文生图 API"行）。
+
 当前原型用本地确定性引擎模拟 AI 能力，架构已预留替换点，均为**单函数替换**：
 
 | 模块 | 当前（演示通道） | 接入真实 API 时替换 |
 |---|---|---|
-| 脚本生成 | `generateScript()` 模板引擎 | LLM API（如 GPT / 通义 / 混元），Prompt 要求输出 JSON 结构 |
+| 脚本生成 | `generateScript()` 模板引擎 + `MILITARY_KB` 军事知识库 | LLM API（如 GPT / 通义 / 混元），Prompt 要求输出 JSON 结构 |
 | 大纲生成 | `generateOutline()` 从脚本提炼 | 同 LLM API，单独返回大纲 JSON |
-| 文生图 | `renderSceneImage()` Canvas 程序化生成 | 文生图 API（如 Stable Diffusion / DALL·E / 混元生图），按分镜描述出图 |
+| **文生图** | `genImageViaAPI()` → **Pollinations.ai**（已接入，渐进式加载，超时回退 Canvas） | 把 `_callPollinations()` 替换为其他文生图 API（Stable Diffusion / DALL·E / 混元生图） |
+| 演示稿配图 | `renderSlideImage()` Canvas 程序化 | 同上，API 出图 + 回退 |
+| 历史项目封面 | `loadProjectCover()` 异步调用 `genImageViaAPI()` | 已自动接入，prompt 智能增强（军事关键词→英文短句） |
 | 网页动画 | `buildHtmlScene()` 本地动效模板 | LLM 生成 HTML/CSS 动画代码片段（沙箱 iframe 渲染） |
 | 旁白语音 | 浏览器 `speechSynthesis` | TTS API（如 Edge-TTS / 火山 / 腾讯云），预合成音频文件 |
 | 背景音乐 | WebAudio 程序化生成 | 音乐库 API 或版权曲库标签匹配 |
 | 文档解析 | `kindOf()` 仅记录 .doc/.pdf 文件名 | 文档解析 API（如 TextIn / 腾讯云文档识别），抽取正文后走文稿注入通道 |
 
-B/S 生产化建议：前端保留本套 UI 与播放器，新增 Node/Python 后端负责 AI 编排（任务队列 + SSE 进度推送），导出改用服务端 Puppeteer/FFmpeg 渲染，避免依赖浏览器录屏。
+### 文生图 API 接入详情
+
+**当前默认通道**：Pollinations.ai（https://image.pollinations.ai）
+- ✅ 完全免费，无需 API key
+- ✅ 支持中英文 prompt（内置 `enhancePrompt()` 把中文军事术语翻译成适合文生图的英文短句）
+- ✅ 渐进式加载：API 出图期间显示程序化占位图，1-3 秒后被真实图替换
+- ✅ 12 秒超时回退：网络问题/限流时自动回退到 Canvas 程序化生成
+- 缺点：偶发限流；中文 prompt 直出质量一般
+
+**切换到其他文生图 API**（Stable Diffusion / DALL·E / 文心一格 / 混元）：
+只需替换 `_callPollinations()` 函数，返回 `Promise<dataURL>` 即可。函数签名：
+```js
+async function _callPollinations(prompt, w, h){
+  // 调用任意文生图 API，返回 data:image/...;base64,xxx
+  // 出错时 throw new Error()
+}
+```
+
+### B/S 生产化建议
+
+前端保留本套 UI 与播放器，新增 Node/Python 后端负责 AI 编排（任务队列 + SSE 进度推送），导出改用服务端 Puppeteer/FFmpeg 渲染，避免依赖浏览器录屏。文生图建议走服务端代理（避免前端 CORS 与限流问题）。
