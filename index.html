@@ -745,12 +745,13 @@
     </div>
     <div class="modal-body">
       <div class="dropzone" id="dropzone" onclick="$('#fileInput').click()">
-        <div class="dz-icon">🗂️</div>
+        <div class="dz-icon">📑</div>
         <div class="dz-t">点击选择文件，或将文件 <b>拖拽到此处</b></div>
         <div class="dz-s">
-          支持：脚本文稿（.txt / .md，内容将注入脚本生成） · 图片素材（.png / .jpg / .jpeg / .gif / .webp，<br>
-          图片轮播模式下将作为分镜画面素材） · 参考文档（.doc / .docx / .pdf 等，记录为参考资料）<br>
-          单个文件不超过 10 MB，一次最多 8 个文件
+          <b>📑 课件自动生成视频</b>：上传 PDF / PPTX / DOCX 课件，系统自动解析内容并生成教学视频/演示稿<br>
+          <b>📄 脚本文稿</b>：.txt / .md，内容将注入脚本生成<br>
+          <b>🖼️ 图片素材</b>：.png / .jpg，图片轮播模式下将作为分镜画面素材<br>
+          单个文件不超过 20 MB，一次最多 8 个文件
         </div>
       </div>
       <input type="file" id="fileInput" multiple hidden
@@ -1974,7 +1975,7 @@ async function runPipeline(prompt, files){
   const track = buildStepTrack();
 
   // 附件解析：文稿内容 → 脚本生成上下文；图片 → 分镜画面素材
-  const textFiles = files.filter(f=>f.kind==='text' && f.content);
+  const textFiles = files.filter(f=>(f.kind==='text' || f.kind==='courseware') && f.content);
   const imgFiles  = files.filter(f=>f.kind==='image' && f.dataUrl);
   const docFiles  = files.filter(f=>f.kind==='doc');
   const textCtx = textFiles.map(f=>`【${f.name}】\n${f.content}`).join('\n\n');
@@ -1987,7 +1988,7 @@ async function runPipeline(prompt, files){
   const script = generateScript(prompt, textCtx);
   const scriptText = script.parts.map((p,i)=>`【${p.slot}】\n${p.text}`).join('\n\n');
   updateMsg(m1,`✅ 第 1 步 · 视频脚本生成完成<br><b>《${esc(script.title)}》</b>（五段式完整文稿）`
-    +(script.fromUpload?`<br>📎 脚本内容取自上传文稿：${textFiles.map(f=>esc(f.name)).join('、')}`:'')
+    +(script.fromUpload?`<br>📎 脚本内容取自上传${textFiles.some(f=>f.kind==='courseware')?'课件':'文稿'}：${textFiles.map(f=>esc(f.name)).join('、')}`:'')
     +(script.fromKB?`<br>🎖 脚本内容取自<b>军事理论课专业知识库</b>，覆盖该章节教学要点`:''));
   addMsg('agent',`<div class="script">${esc(scriptText)}</div>`);
   setStep(track,0,'done');
@@ -2186,20 +2187,97 @@ function goHome(){
 /* ---------------- 文件上传模块 ---------------- */
 const TEXT_EXT = ['txt','md','markdown','csv','json','srt'];
 const IMG_EXT  = ['png','jpg','jpeg','gif','webp','bmp'];
-const MAX_FILE_MB = 10, MAX_FILES = 8;
+const CW_EXT   = ['pdf','pptx','ppt','docx','doc'];  // 课件格式
+const MAX_FILE_MB = 20, MAX_FILES = 8;
 function extOf(name){ const m=String(name).match(/\.([a-z0-9]+)$/i); return m?m[1].toLowerCase():'' }
 function kindOf(name){
   const e=extOf(name);
   if(TEXT_EXT.includes(e)) return 'text';
   if(IMG_EXT.includes(e))  return 'image';
+  if(CW_EXT.includes(e))  return 'courseware';
   return 'doc';
 }
 const KIND_META = {
   text:{icon:'📄', tag:'文稿 · 注入脚本生成'},
   image:{icon:'🖼️', tag:'图片 · 分镜画面素材'},
+  courseware:{icon:'📑', tag:'课件 · 自动解析→生成视频'},
   doc:{icon:'📕', tag:'文档 · 参考资料'},
 };
 function fmtSize(n){ return n>1048576 ? (n/1048576).toFixed(1)+' MB' : Math.max(1,Math.round(n/1024))+' KB' }
+
+/* ============ 课件内容提取（PDF/PPTX/DOCX） ============ */
+// 懒加载 CDN 脚本（只在用户上传课件时加载，不影响首屏速度）
+function loadScript(src){
+  return new Promise((resolve,reject)=>{
+    if(document.querySelector('script[src="'+src+'"]')){ resolve(); return; }
+    const s=document.createElement('script');
+    s.src=src; s.onload=resolve; s.onerror=()=>reject(new Error('CDN加载失败: '+src));
+    document.head.appendChild(s);
+  });
+}
+const CDN = {
+  pdfjs: 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js',
+  jszip: 'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js',
+};
+// PDF 提取：用 pdf.js 逐页提取文本
+async function extractPDF(file){
+  await loadScript(CDN.pdfjs);
+  if(window.pdfjsLib) pdfjsLib.GlobalWorkerOptions.workerSrc = CDN.pdfjs.replace('pdf.min.js','pdf.worker.min.js');
+  const ab = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({data:ab}).promise;
+  let texts = [];
+  for(let i=1; i<=Math.min(pdf.numPages, 20); i++){
+    const page = await pdf.getPage(i);
+    const content = await page.getTextContent();
+    const text = content.items.map(item=>item.str).join(' ').trim();
+    if(text) texts.push(text);
+  }
+  return texts; // 返回每页文本数组
+}
+// PPTX 提取：用 JSZip 解压，解析 slide XML
+async function extractPPTX(file){
+  await loadScript(CDN.jszip);
+  const ab = await file.arrayBuffer();
+  const zip = await JSZip.loadAsync(ab);
+  let texts = [];
+  const slideFiles = Object.keys(zip.files).filter(n=>/ppt\/slides\/slide\d+\.xml$/.test(n)).sort((a,b)=>{
+    const na=parseInt(a.match(/\d+/)[0]), nb=parseInt(b.match(/\d+/)[0]);
+    return na-nb;
+  });
+  for(const sf of slideFiles.slice(0, 20)){
+    const xml = await zip.files[sf].async('text');
+    // 提取 <a:t> 标签内的文本
+    const matches = xml.match(/<a:t[^>]*>([^<]*)<\/a:t>/g) || [];
+    const text = matches.map(m=>m.replace(/<[^>]+>/g,'')).join(' ').trim();
+    if(text) texts.push(text);
+  }
+  return texts;
+}
+// DOCX 提取：用 JSZip 解压，解析 document.xml
+async function extractDOCX(file){
+  await loadScript(CDN.jszip);
+  const ab = await file.arrayBuffer();
+  const zip = await JSZip.loadAsync(ab);
+  const xml = await zip.files['word/document.xml'].async('text');
+  // 提取 <w:t> 标签内的文本，按段落分组
+  const paras = xml.split(/<\/w:p>/);
+  let texts = [];
+  for(const para of paras){
+    const matches = para.match(/<w:t[^>]*>([^<]*)<\/w:t>/g) || [];
+    const text = matches.map(m=>m.replace(/<[^>]+>/g,'')).join('').trim();
+    if(text.length >= 5) texts.push(text);
+  }
+  return texts;
+}
+// 课件提取调度函数
+async function extractCourseware(file){
+  const ext = extOf(file.name);
+  if(ext === 'pdf')   return await extractPDF(file);
+  if(ext === 'pptx') return await extractPPTX(file);
+  if(ext === 'docx') return await extractDOCX(file);
+  // .doc/.ppt 老格式浏览器无法解析
+  throw new Error('不支持的格式: .'+ext+'（请转为 .pdf/.pptx/.docx）');
+}
 
 function openUpload(){
   state.staging = state.attach.map(f=>({...f})); // 回显已有附件
@@ -2219,7 +2297,7 @@ function addFiles(fileList){
     if(f.size > MAX_FILE_MB*1048576){ toast(`「${f.name}」超过 ${MAX_FILE_MB} MB，已跳过`); continue; }
     if(state.staging.some(x=>x.name===f.name && x.size===f.size)){ toast(`「${f.name}」已在列表中`); continue; }
     const kind=kindOf(f.name);
-    const item={name:f.name, size:f.size, kind, content:'', dataUrl:''};
+    const item={name:f.name, size:f.size, kind, content:'', dataUrl:'', extracting:false};
     state.staging.push(item);
     const reader=new FileReader();
     if(kind==='text'){
@@ -2228,6 +2306,21 @@ function addFiles(fileList){
     }else if(kind==='image'){
       reader.onload=e=>{ item.dataUrl=String(e.target.result); renderStaging(); };
       reader.readAsDataURL(f);
+    }else if(kind==='courseware'){
+      // 课件异步提取（PDF/PPTX/DOCX）
+      item.extracting=true; renderStaging();
+      extractCourseware(f).then(texts=>{
+        item.content = texts.join('\n\n').slice(0, 30000);
+        item.extracting=false;
+        item.slideCount = texts.length;
+        renderStaging();
+        toast(`「${f.name}」解析完成：${texts.length} 页/段，${item.content.length} 字`);
+      }).catch(e=>{
+        item.extracting=false;
+        item.extractError = e.message;
+        renderStaging();
+        toast(`「${f.name}」解析失败：${e.message}`);
+      });
     }
   }
   renderStaging();
@@ -2244,7 +2337,12 @@ function renderStaging(){
       ? (f.content?`已读取 ${f.content.length} 字 · 内容将注入脚本生成`:'正在读取内容…')
       : f.kind==='image'
         ? (f.dataUrl?'已就绪 · 将作为分镜画面素材':'正在生成预览…')
-        : '已记录为参考资料（文档解析可在工程化版本接入）';
+        : f.kind==='courseware'
+          ? (f.extracting?'⏳ 正在解析课件内容…'
+            : f.extractError?`❌ ${f.extractError}`
+            : f.content?`✅ 解析完成：${f.slideCount||0} 页/段 · ${f.content.length} 字 · 将自动生成视频`
+            : '等待解析…')
+          : '已记录为参考资料';
     return `<div class="file-row">${vis}
       <div class="fr-meta"><div class="fr-name">${esc(f.name)}</div><div class="fr-info">${fmtSize(f.size)} · ${info}</div></div>
       <span class="fr-tag">${meta.tag}</span>
@@ -2254,12 +2352,33 @@ function renderStaging(){
   $('#mfOk').disabled = !state.staging.length;
 }
 function confirmUpload(){
-  state.attach = state.staging.filter(f=> f.kind!=='text' || f.content); // 文稿须读取成功
+  // 过滤：文稿须读取成功；课件须解析完成有内容；图片须就绪
+  state.attach = state.staging.filter(f=>{
+    if(f.kind==='text') return !!f.content;
+    if(f.kind==='courseware') return !!f.content && !f.extracting;
+    if(f.kind==='image') return !!f.dataUrl;
+    return true;
+  });
   $('#uploadMask').classList.remove('show');
   $('#fileInput').value='';
   state.staging=[];
   renderAttachTray();
-  if(state.attach.length) toast(`已添加 ${state.attach.length} 个附件，发送提示词时将一并交给 AI`);
+  if(!state.attach.length) return;
+
+  // 检查是否有课件文件（有内容）
+  const cwFiles = state.attach.filter(f=>f.kind==='courseware' && f.content);
+  if(cwFiles.length){
+    const totalChars = cwFiles.reduce((a,f)=>a+f.content.length, 0);
+    toast(`📑 课件解析完成（${cwFiles.length} 个文件 · ${totalChars} 字），正在自动生成视频…`);
+    // 自动触发流水线
+    const cwContent = cwFiles.map(f=>'【'+f.name+'】\n'+f.content).join('\n\n');
+    const prompt = state.mode==='ppt'
+      ? '根据上传的课件内容生成教学演示稿'
+      : '根据上传的课件内容创作一支教学短片';
+    setTimeout(()=> handleChat(prompt, state.attach.splice(0)), 600);
+  }else{
+    toast(`已添加 ${state.attach.length} 个附件，发送提示词时将一并交给 AI`);
+  }
 }
 function rmAttach(i){ state.attach.splice(i,1); renderAttachTray(); }
 function renderAttachTray(){
@@ -2374,7 +2493,7 @@ async function runPptPipeline(prompt, files){
   chatDisable(true);
   addMsg('user', esc(prompt)+attachSummary(files));
   const track = buildStepTrack();
-  const textFiles = files.filter(f=>f.kind==='text' && f.content);
+  const textFiles = files.filter(f=>(f.kind==='text' || f.kind==='courseware') && f.content);
   const textCtx = textFiles.map(f=>`【${f.name}】\n${f.content}`).join('\n\n');
   const topic = pptTopicOf(prompt);
 
@@ -2383,7 +2502,7 @@ async function runPptPipeline(prompt, files){
   const m1=addMsg('agent','✍️ 第 1 步 · 生成演示稿脚本…',true); await sleep(900);
   const script = generatePptScript(prompt, textCtx, topic);
   updateMsg(m1,`✅ 第 1 步 · 演示稿脚本完成<br><b>《${esc(script.title)}》</b>（共 ${script.parts.length} 页）`
-    +(script.fromUpload?`<br>📎 脚本内容取自上传文稿`:'')
+    +(script.fromUpload?`<br>📎 脚本内容取自上传${textFiles.some(f=>f.kind==='courseware')?'课件':'文稿'}：${textFiles.map(f=>esc(f.name)).join('、')}`:'')
     +(script.fromKB?`<br>🎖 脚本内容取自<b>军事理论课专业知识库</b>，按教学章节结构组织`:''));
   addMsg('agent',`<div class="script">${esc(script.parts.map((p,i)=>`【${i+1} · ${p.slot}】\n${p.text}`).join('\n\n'))}</div>`);
   setStep(track,0,'done');
