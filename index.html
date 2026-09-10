@@ -696,6 +696,15 @@
     <div style="padding:16px 20px 20px">
       <label class="cfg-label">一句话主题（越具体，成片越准）</label>
       <textarea id="oneShotTopic" class="cfg-input" rows="2" placeholder="例：制作一段 60 秒的长城历史教学短视频，面向大学生军事理论课" style="resize:vertical;font-size:13.5px"></textarea>
+      <label class="cfg-label" style="margin-top:12px">内容主题模板（决定叙事结构与画面风格）</label>
+      <select id="oneShotTheme" class="cfg-input" onchange="onOneShotThemeChange()">
+        <option value="auto" selected>🤖 自动识别 · 按关键词匹配（军事内容走专业知识库）</option>
+        <option value="military">🎖 军事教学 · 五段式军教叙事 + 军事知识库 + 军绿/战旗红配色</option>
+        <option value="history">📜 历史故事 · 时间线叙事（缘起-风云-转折-传承-回响）+ 水墨暖阳</option>
+        <option value="product">📦 产品介绍 · 卖点式叙事（痛点-功能-场景-号召）+ 科技蓝紫</option>
+        <option value="news">📺 新闻播报 · 导语式叙事（直击-数据-观点-结语）+ 战旗红金</option>
+      </select>
+      <div id="oneShotThemeTip" class="cfg-tip" style="margin-top:6px"></div>
       <label class="cfg-label" style="margin-top:12px">画面模式</label>
       <select id="oneShotMode" class="cfg-input" onchange="updateOneShotCost()">
         <option value="hybrid" selected>🎬 混合版（推荐）· 开头/高潮/结尾 3 个分镜出 AI 视频，其余静态图</option>
@@ -923,6 +932,8 @@ const PALETTES = [
   {id:'ink',   name:'水墨雅黑', kw:['哲学','思想','社会','经济','政治','城市','生活'],                    bg:['#101318','#2b3242'], blobs:['#8b95ae','#e8e2d6','#4f9bff']},
 ];
 function pickPalette(text, seed){
+  const th = _activeTheme();
+  if(th && th.pal) return th.pal; // 显式主题 → 固定配色
   const t = String(text).toLowerCase();
   for(const p of PALETTES){ if(p.kw.some(k => t.includes(k))) return p.id; }
   return PALETTES[seed % PALETTES.length].id;
@@ -1578,7 +1589,11 @@ function scenePromptFor(s, project){
   const topic = (project && project.topic) || s.keyword || s.title || '';
   const narration = s.narration || s.title || '';
   const base = (topic + ' ' + narration.slice(0,50)).trim();
-  s._apiPrompt = enhancePrompt(base);
+  let out = enhancePrompt(base);
+  // 主题画面调性最后追加，优先级最高（历史水墨/产品棚拍/新闻演播室）
+  const th = _activeTheme();
+  if(th && th.style) out = (out + ', ' + th.style).slice(0, 320);
+  s._apiPrompt = out;
   return s._apiPrompt;
 }
 /* 给指定 img 元素异步替换为真实文生图（缩略图小、大画面中等分辨率，并发控制） */
@@ -1786,22 +1801,26 @@ function generateScript(prompt, extraText){
     const sents = String(extraText).split(/[。！？!?\n]+/).map(s=>s.replace(/\s+/g,' ').trim()).filter(s=>s.length>=8);
     if(sents.length>=5) src=sents;
   }
-  // 军事主题命中 → 使用专业知识库
-  const mil = matchMilitaryTopic(prompt);
+  // 军事主题命中 → 使用专业知识库；显式选择非军事主题时跳过军事库
+  const th = _activeTheme();
+  const mil = (th && th.id!=='military') ? null : matchMilitaryTopic(prompt);
   const parts = SLOTS.map((s,i)=>{
     let text;
     if(src){
       const per=Math.ceil(src.length/SLOTS.length);
       const seg=src.slice(i*per,(i+1)*per).join('。');
-      text = seg.length>=12 ? seg.slice(0,140)+(seg.length>140?'…':'') : (mil? mil.sections[i] : pickOf(V_GENERIC[i]));
+      text = seg.length>=12 ? seg.slice(0,140)+(seg.length>140?'…':'')
+           : (th && th.narration ? pickOf(th.narration(topic)[i]) : (mil? mil.sections[i] : pickOf(vGeneric(topic)[i])));
     }else if(mil){
       text = mil.sections[i];
+    }else if(th && th.narration){
+      text = pickOf(th.narration(topic)[i]);
     }else{
       text = pickOf(vGeneric(topic)[i]);
     }
     return {slot:`${s.c} · ${s.name}`, title:s.name, text};
   });
-  return { topic: mil?mil.title:topic, title: (mil?mil.title:topic)+' · AI成片', parts, fromUpload: !!src, fromKB: !!mil && !src };
+  return { topic: mil?mil.title:topic, title: (mil?mil.title:topic)+(th?` · ${th.icon}${th.name}`:'')+' · AI成片', parts, fromUpload: !!src, fromKB: !!mil && !src, theme: th?th.id:'auto' };
 }
 // 通用模板（非军事主题兜底）
 function vGeneric(topic){
@@ -1818,6 +1837,70 @@ function vGeneric(topic){
     [`${t}不是遥远的未来，而是正在发生的现在。下一部作品，由你开启。`,
      `这就是${t}。理解它，就是理解这个时代创作方式的下一次跃迁。`],
   ];
+}
+/* ============ 多模板主题（军事教学/历史故事/产品介绍/新闻播报） ============ */
+let CURRENT_THEME = 'auto'; // 'auto' | 'military' | 'history' | 'product' | 'news'
+const TOPIC_THEMES = {
+  military: { id:'military', name:'军事教学', icon:'🎖',
+    pal:null, style:null, narrative:null, // 复用军事知识库 + 关键词自动配色（军绿/战旗红/夜战蓝/钢铁灰）
+    tip:'五段式军教叙事（起承转合升华）+ 军事知识库专业文案' },
+  history:  { id:'history', name:'历史故事', icon:'📜', pal:'warm',
+    style:'historical documentary illustration, ancient Chinese architecture, ink wash and sepia tones, cinematic lighting, epic atmosphere',
+    tip:'时间线叙事（缘起-风云-转折-传承-回响）+ 水墨暖阳配色',
+    narration(t){ const s=t||'这段历史';
+      return [
+        [`翻开史册，${s}的故事要从很久以前说起。那一年，风云初起，谁也不曾料到后来的波澜壮阔。`,
+         `每一座古城墙、每一卷泛黄的竹简，都藏着${s}的印记。故事，要从源头讲起。`],
+        [`彼时天下大势暗流涌动，${s}所处的时代，机遇与危机并存，一个关键的抉择摆在了人们面前。`,
+         `时代的车轮滚滚向前，${s}正是在这样的背景下登上了历史舞台。`],
+        [`转折发生在那个决定性的瞬间——一纸诏令、一场对话、一次远行，${s}的命运从此改写。`,
+         `历史的转折点往往藏在细节里。${s}中最关键的这一步，改变了此后数百年的走向。`],
+        [`从那以后，${s}的影响逐步扩散：制度、文化、技术彼此交织，在岁月中沉淀为文明的底色。`,
+         `一代代人的坚守与传承，让${s}从一段往事变成一种精神，融入民族的血脉。`],
+        [`回望${s}，我们读到的不只是过去，更是走向未来的启示。历史从未走远，它一直在回答今天的提问。`,
+         `这就是${s}留给我们的回响。读懂它，就读懂了我们从何处来、向何处去。`],
+      ];
+    }},
+  product:  { id:'product', name:'产品介绍', icon:'📦', pal:'tech',
+    style:'clean modern product photography, minimal studio lighting, sleek industrial design, soft gradient background',
+    tip:'卖点式叙事（痛点-登场-功能-场景-号召）+ 科技蓝紫配色',
+    narration(t){ const s=t||'这款产品';
+      return [
+        [`你是否也遇到过这样的困扰？忙碌一天，总有些事情力不从心。${s}，正是为此而生。`,
+         `在同类产品还在堆砌功能时，${s}选择回到一个朴素的问题：用户真正需要什么？`],
+        [`${s}以极简设计语言重新定义体验：一眼看懂的界面，零学习成本的操作。`,
+         `揭开${s}的面纱，你会发现每一处细节都经过上百次打磨。`],
+        [`核心能力上，${s}提供三大支柱：更快、更稳、更智能，全面覆盖高频使用场景。`,
+         `性能是${s}的底气：处理速度提升数倍，同时保持极低的资源占用。`],
+        [`清晨的通勤路上、深夜的办公桌前、周末的创作时刻——${s}无缝融入你的每一个场景。`,
+         `从个人使用到团队协作，${s}都能从容应对，让效率真正落地。`],
+        [`现在就开始体验${s}吧。好的工具，从不辜负选择它的人。`,
+         `${s}，把复杂留给我们，把简单留给你。即刻开启。`],
+      ];
+    }},
+  news:     { id:'news', name:'新闻播报', icon:'📺', pal:'flag',
+    style:'TV news studio broadcast, anchor desk, professional lower-third graphics, breaking news atmosphere',
+    tip:'导语式叙事（导语-直击-数据-观点-结语）+ 战旗红金配色',
+    narration(t){ const s=t||'本条新闻';
+      return [
+        [`观众朋友们大家好，欢迎收看本期节目。今天我们关注的焦点是：${s}。`,
+         `近日，${s}引发广泛关注。这条消息为何重要？本台为您深度梳理。`],
+        [`首先来看现场情况。记者了解到，${s}的最新进展仍在持续更新之中。`,
+         `本台记者从一线发回报道：围绕${s}，各方行动正在加速推进。`],
+        [`一组数据带你看清全貌：与此前相比，${s}相关指标出现明显变化，趋势值得关注。`,
+         `数据显示，${s}所带来的影响正在多个层面同步显现。`],
+        [`对此，业内人士怎么看？有观点认为，${s}标志着行业进入新阶段；也有声音提醒，仍需理性观察。`,
+         `多方观点交锋：支持者看到机遇，审慎者提示风险。${s}的未来走向，尚待时间检验。`],
+        [`${s}的后续进展，本台将持续追踪报道。感谢收看，再会。`,
+         `以上就是本期关于${s}的全部内容。更多深度报道，我们下期再见。`],
+      ];
+    }},
+};
+/* 当前生效主题（项目内优先，其次向导选择） */
+function _activeTheme(){
+  let t = CURRENT_THEME || 'auto';
+  try{ if(state.project && state.project.theme) t = state.project.theme; }catch(e){}
+  return (t && t!=='auto' && TOPIC_THEMES[t]) ? TOPIC_THEMES[t] : null;
 }
 // 第2步：生成大纲（逐段核心要点 + 视觉提示）
 function generateOutline(script){
@@ -2478,8 +2561,18 @@ async function runPipeline(prompt, files){
 /* ================= ⚡ 一句话成片 ================= */
 function openOneShotWizard(){
   $('#oneShotMask').classList.add('show');
+  onOneShotThemeChange();
   updateOneShotCost();
   setTimeout(()=>$('#oneShotTopic').focus(),50);
+}
+function onOneShotThemeChange(){
+  const v = $('#oneShotTheme').value;
+  const th = TOPIC_THEMES[v];
+  const el = $('#oneShotThemeTip');
+  if(!el) return;
+  el.innerHTML = (v==='auto')
+    ? '按你输入的关键词自动匹配叙事模板与配色；军事类内容将命中专业知识库。'
+    : `${th.icon} <b>${th.name}</b>：${th.tip}${th.style?'<br>🎨 画面调性：'+esc(th.style.split(',').slice(0,3).join(' / ')):''}`;
 }
 function closeOneShotWizard(){
   $('#oneShotMask').classList.remove('show');
@@ -2510,11 +2603,14 @@ async function startOneShot(){
   const topic=$('#oneShotTopic').value.trim();
   if(!topic){ alert('请先输入一句话主题'); $('#oneShotTopic').focus(); return; }
   const p=_oneShotPlan();
+  const theme = ($('#oneShotTheme') && $('#oneShotTheme').value) || 'auto';
   closeOneShotWizard();
   enterEditor('image');
+  CURRENT_THEME = theme; // enterEditor 会重置为 auto，此处覆盖为用户选择
   // 复用既有七步流水线：脚本→大纲→分镜→画面→声音→预览
   try{
     await runPipeline(topic);
+    if(state.project) state.project.theme = theme; // 持久化到项目，重开/重做分镜仍按此主题
   }catch(e){
     addMsg('sys','⚠️ 成片流水线中断：'+(e&&e.message?e.message:e)+'。可稍后重试，或改用编辑器逐句生成。');
     chatDisable(false);
@@ -2657,6 +2753,7 @@ function chipPlay(){
 /* ---------------- 视图切换 ---------------- */
 function enterEditor(mode){
   state.mode=mode;
+  CURRENT_THEME = 'auto'; // 常规入口重置主题；一句话成片流程随后覆盖
   $('#viewHome').classList.add('hidden');
   $('#viewEditor').classList.remove('hidden');
   document.body.classList.toggle('mode-ppt', mode==='ppt');
